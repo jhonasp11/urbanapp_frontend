@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "635271273947",
+    "project_id": "urbanapp-e34b1",
+    "storage_bucket": "urbanapp-e34b1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:635271273947:android:ea746d63b4f82a1ac51bfe",
+        "android_client_info": {
+          "package_name": "com.example.urbanapp_frontend"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyDaWMpMZ_GwJ42ZbzO1rWSyTWP8lahkrSk"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
