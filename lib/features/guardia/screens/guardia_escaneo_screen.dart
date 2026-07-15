@@ -7,9 +7,11 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/input_formatters.dart';
 import 'guardia_ingreso_manual_screen.dart';
 import 'guardia_reporte_incidencia_screen.dart';
+import 'package:dio/dio.dart';
 
 class GuardiaEscaneoScreen extends StatefulWidget {
-  const GuardiaEscaneoScreen({super.key});
+  final String bitacoraId;
+  const GuardiaEscaneoScreen({super.key, this.bitacoraId = ''});
 
   @override
   State<GuardiaEscaneoScreen> createState() => _GuardiaEscaneoScreenState();
@@ -25,7 +27,7 @@ class _GuardiaEscaneoScreenState extends State<GuardiaEscaneoScreen> {
   String _estado = 'escaneando';
   Map<String, dynamic>? _resultadoEscaneo;
   String _guardiaId = '';
-  final String _bitacoraId = '';
+  String get _bitacoraId => widget.bitacoraId;
   int _intentosFallidos = 0;
   String _codigoQrId = '';
 
@@ -54,9 +56,13 @@ class _GuardiaEscaneoScreenState extends State<GuardiaEscaneoScreen> {
   Future<void> _escanear(String codigoHash) async {
     if (_procesando || codigoHash.isEmpty || _estado != 'escaneando') return;
 
-    setState(() => _procesando = true);
-    await Future.delayed(const Duration(milliseconds: 500));
+    setState(() {
+      _procesando = true;
+      _estado = 'detectando';
+    });
     _scannerController.stop();
+    // Efecto de "detectando/validando código"
+    await Future.delayed(const Duration(milliseconds: 1500));
 
     try {
       final res = await _api.post(ApiConstants.validarQr, data: {
@@ -134,9 +140,16 @@ class _GuardiaEscaneoScreenState extends State<GuardiaEscaneoScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _procesando = false);
+        String mensaje = 'No se pudo registrar el ingreso. Intenta de nuevo.';
+        if (e is DioException && e.response?.data != null) {
+          final data = e.response!.data;
+          if (data is Map && data['message'] != null) {
+            mensaje = data['message'].toString();
+          }
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No se pudo registrar el ingreso. Intenta de nuevo.'),
+          SnackBar(
+            content: Text(mensaje),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),
@@ -148,8 +161,9 @@ class _GuardiaEscaneoScreenState extends State<GuardiaEscaneoScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor:
-          _estado == 'escaneando' ? Colors.black : AppColors.background,
+      backgroundColor: (_estado == 'escaneando' || _estado == 'detectando')
+          ? Colors.black
+          : AppColors.background,
       appBar: _estado == 'escaneando'
           ? AppBar(
               backgroundColor: Colors.black,
@@ -187,6 +201,8 @@ class _GuardiaEscaneoScreenState extends State<GuardiaEscaneoScreen> {
 
   Widget _buildBody() {
     switch (_estado) {
+      case 'detectando':
+        return _buildDetectando();
       case 'valido':
         return _buildValido();
       case 'invalido':
@@ -198,6 +214,46 @@ class _GuardiaEscaneoScreenState extends State<GuardiaEscaneoScreen> {
       default:
         return _buildEscaner();
     }
+  }
+
+  Widget _buildDetectando() {
+    return Container(
+      color: Colors.black,
+      width: double.infinity,
+      height: double.infinity,
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            width: 120,
+            height: 120,
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              shape: BoxShape.circle,
+              border: Border.all(color: AppColors.primary, width: 2),
+            ),
+            child: const Icon(Icons.qr_code_scanner,
+                color: AppColors.primary, size: 56),
+          ),
+          const SizedBox(height: 32),
+          const SizedBox(
+            width: 32,
+            height: 32,
+            child: CircularProgressIndicator(
+                color: AppColors.primary, strokeWidth: 3),
+          ),
+          const SizedBox(height: 24),
+          const Text('Detectando código...',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 18,
+                  fontWeight: FontWeight.w700)),
+          const SizedBox(height: 8),
+          const Text('Validando la información del visitante',
+              style: TextStyle(color: Colors.white70, fontSize: 13)),
+        ],
+      ),
+    );
   }
 
   Widget _buildEscaner() {
@@ -493,6 +549,7 @@ class _GuardiaEscaneoScreenState extends State<GuardiaEscaneoScreen> {
                 MaterialPageRoute(
                   builder: (_) => GuardiaReporteIncidenciaScreen(
                     guardiaId: _guardiaId,
+                    bitacoraId: _bitacoraId,
                   ),
                 ),
               ),
@@ -516,8 +573,10 @@ class _GuardiaEscaneoScreenState extends State<GuardiaEscaneoScreen> {
               onPressed: () => Navigator.push(
                 context,
                 MaterialPageRoute(
-                  builder: (_) =>
-                      GuardiaIngresoManualScreen(guardiaId: _guardiaId),
+                  builder: (_) => GuardiaIngresoManualScreen(
+                    guardiaId: _guardiaId,
+                    bitacoraId: _bitacoraId,
+                  ),
                 ),
               ),
               icon: const Icon(Icons.person_add_outlined,

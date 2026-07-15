@@ -1,13 +1,16 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
+import 'package:dio/dio.dart';
 
 class GuardiaReporteIncidenciaScreen extends StatefulWidget {
   final String guardiaId;
+  final String bitacoraId;
 
   const GuardiaReporteIncidenciaScreen({
     super.key,
     required this.guardiaId,
+    this.bitacoraId = '',
   });
 
   @override
@@ -55,6 +58,7 @@ class _GuardiaReporteIncidenciaScreenState
         'guardia_id': widget.guardiaId,
         'observacion_incidencia': _observacionesCtrl.text.trim(),
         'hora_ingreso': _fechaHora.toIso8601String(),
+        'bitacora_id': widget.bitacoraId.isNotEmpty ? widget.bitacoraId : null,
       });
 
       if (!mounted) return;
@@ -68,9 +72,16 @@ class _GuardiaReporteIncidenciaScreenState
       Navigator.popUntil(context, (route) => route.isFirst);
     } catch (e) {
       if (mounted) {
+        String mensaje = 'Error al enviar el reporte';
+        if (e is DioException && e.response?.data != null) {
+          final data = e.response!.data;
+          if (data is Map && data['message'] != null) {
+            mensaje = data['message'].toString();
+          }
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al enviar el reporte'),
+          SnackBar(
+            content: Text(mensaje),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),

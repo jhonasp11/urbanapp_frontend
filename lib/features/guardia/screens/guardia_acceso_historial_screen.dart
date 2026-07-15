@@ -5,6 +5,7 @@ import '../../../core/services/api_service.dart';
 import '../../../core/constants/api_constants.dart';
 import 'guardia_bitacora_screen.dart';
 import 'guardia_ingreso_detalle_screen.dart';
+import 'package:dio/dio.dart';
 
 class GuardiaAccesoHistorialScreen extends StatefulWidget {
   const GuardiaAccesoHistorialScreen({super.key});
@@ -23,6 +24,7 @@ class GuardiaAccesoHistorialScreenState
 
   List<dynamic> _ingresos = [];
   bool _loading = true;
+  bool _abriendoBitacora = false;
   String _filtro = 'hoy';
   String _filtroTipo = 'todos';
   String _guardiaId = '';
@@ -123,7 +125,7 @@ class GuardiaAccesoHistorialScreenState
   String _formatHora(String? isoStr) {
     if (isoStr == null) return '';
     try {
-      final dt = DateTime.parse(isoStr).toLocal();
+      final dt = DateTime.parse(isoStr);
       return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} ${dt.hour < 12 ? 'AM' : 'PM'}';
     } catch (_) {
       return '';
@@ -424,19 +426,7 @@ class GuardiaAccesoHistorialScreenState
             child: SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () async {
-                  await _cargar();
-                  if (!mounted) return;
-                  Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                      builder: (_) => GuardiaBitacoraScreen(
-                        guardiaId: _guardiaId,
-                        ingresos: _ingresos,
-                      ),
-                    ),
-                  );
-                },
+                onPressed: _abriendoBitacora ? null : _abrirBitacora,
                 icon: const Icon(Icons.menu_book_outlined),
                 label: const Text('BITÁCORA DIGITAL',
                     style: TextStyle(
@@ -457,6 +447,56 @@ class GuardiaAccesoHistorialScreenState
         ],
       ),
     );
+  }
+
+  Future<void> _abrirBitacora() async {
+    if (_abriendoBitacora) return;
+    setState(() => _abriendoBitacora = true);
+    try {
+      final resEstado = await _api.get('/bitacora/estado/$_guardiaId');
+      final bitacoraActiva = resEstado.data['bitacora_activa'];
+      if (bitacoraActiva == null) {
+        if (!mounted) return;
+        setState(() => _abriendoBitacora = false);
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('No hay una bitácora activa en este momento'),
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+        return;
+      }
+      final resBitacora = await _api.get('/bitacora/${bitacoraActiva['id']}');
+      final ingresos = (resBitacora.data['ingresos'] as List?) ?? [];
+      if (!mounted) return;
+      setState(() => _abriendoBitacora = false);
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (_) => GuardiaBitacoraScreen(
+            guardiaId: _guardiaId,
+            ingresos: ingresos,
+            bitacoraId: bitacoraActiva['id'],
+          ),
+        ),
+      );
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _abriendoBitacora = false);
+      String mensaje = 'Error al cargar la bitácora';
+      if (e is DioException && e.response?.data != null) {
+        final data = e.response!.data;
+        if (data is Map && data['message'] != null) {
+          mensaje = data['message'].toString();
+        }
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(mensaje),
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    }
   }
 
   Widget _buildFiltroChip(String valor, String label) {

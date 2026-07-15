@@ -3,6 +3,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
 import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/custom_text_field.dart';
+import 'package:dio/dio.dart';
 
 class GuardiaDatosPersonalesScreen extends StatefulWidget {
   final Map<String, dynamic> usuario;
@@ -111,10 +112,17 @@ class _GuardiaDatosPersonalesScreenState
       );
       Navigator.pop(context);
     } catch (e) {
+      String mensaje = 'Error al actualizar los datos';
+      if (e is DioException && e.response?.data != null) {
+        final data = e.response!.data;
+        if (data is Map && data['message'] != null) {
+          mensaje = data['message'].toString();
+        }
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al actualizar los datos'),
+          SnackBar(
+            content: Text(mensaje),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),

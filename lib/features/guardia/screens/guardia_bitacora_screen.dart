@@ -1,20 +1,27 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:dio/dio.dart';
+import 'package:open_filex/open_filex.dart';
+import 'package:path_provider/path_provider.dart';
+import '../../../core/constants/api_constants.dart';
 
 class GuardiaBitacoraScreen extends StatelessWidget {
   final String guardiaId;
   final List<dynamic> ingresos;
+  final String bitacoraId;
 
   const GuardiaBitacoraScreen({
     super.key,
     required this.guardiaId,
     required this.ingresos,
+    this.bitacoraId = '',
   });
 
   String _formatHora(String? isoStr) {
     if (isoStr == null) return '';
     try {
-      final dt = DateTime.parse(isoStr).toLocal();
+      final dt = DateTime.parse(isoStr);
       return '${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')} ${dt.hour < 12 ? 'AM' : 'PM'}';
     } catch (_) {
       return '';
@@ -213,13 +220,47 @@ class GuardiaBitacoraScreen extends StatelessWidget {
             child: SizedBox(
               width: double.infinity,
               child: ElevatedButton.icon(
-                onPressed: () {
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(
-                      content: Text('Función de PDF próximamente disponible'),
-                      behavior: SnackBarBehavior.floating,
-                    ),
-                  );
+                onPressed: () async {
+                  if (bitacoraId.isEmpty) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text('No hay bitácora para generar el PDF'),
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                    return;
+                  }
+                  try {
+                    const storage = FlutterSecureStorage();
+                    final token = await storage.read(key: 'token') ?? '';
+                    final url =
+                        '${ApiConstants.baseUrl}/bitacora/$bitacoraId/pdf';
+                    final dir = await getApplicationDocumentsDirectory();
+                    final filePath = '${dir.path}/bitacora.pdf';
+                    await Dio().download(
+                      url,
+                      filePath,
+                      options:
+                          Options(headers: {'Authorization': 'Bearer $token'}),
+                    );
+                    await OpenFilex.open(filePath);
+                  } catch (e) {
+                    String mensaje = 'Error al descargar el PDF';
+                    if (e is DioException && e.response?.data != null) {
+                      final data = e.response!.data;
+                      if (data is Map && data['message'] != null) {
+                        mensaje = data['message'].toString();
+                      }
+                    }
+                    if (context.mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        SnackBar(
+                          content: Text(mensaje),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }
                 },
                 icon: const Icon(Icons.picture_as_pdf_outlined),
                 label: const Text('Descargar Reporte PDF',

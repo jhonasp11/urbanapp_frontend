@@ -5,10 +5,16 @@ import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/input_formatters.dart';
 import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/custom_text_field.dart';
+import 'package:dio/dio.dart';
 
 class GuardiaIngresoManualScreen extends StatefulWidget {
   final String guardiaId;
-  const GuardiaIngresoManualScreen({super.key, required this.guardiaId});
+  final String bitacoraId;
+  const GuardiaIngresoManualScreen({
+    super.key,
+    required this.guardiaId,
+    this.bitacoraId = '',
+  });
 
   @override
   State<GuardiaIngresoManualScreen> createState() =>
@@ -127,6 +133,7 @@ class _GuardiaIngresoManualScreenState
     try {
       await _api.post(ApiConstants.ingresoManual, data: {
         'guardia_id': widget.guardiaId,
+        'bitacora_id': widget.bitacoraId.isNotEmpty ? widget.bitacoraId : null,
         'nombre_visitante': _nombreVisitanteCtrl.text.trim(),
         'cedula_visitante': _cedulaVisitanteCtrl.text.trim(),
         'placa_vehiculo': _placaCtrl.text.trim(),
@@ -141,11 +148,17 @@ class _GuardiaIngresoManualScreenState
       });
     } catch (e) {
       if (mounted) {
-        final errorStr = e.toString();
         String mensaje = 'Error al registrar el ingreso';
-        if (errorStr.contains('404')) {
-          mensaje =
-              'No se encontró coincidencia con los residentes registrados. Verifica la manzana y villa.';
+        if (e is DioException) {
+          if (e.response?.statusCode == 404) {
+            mensaje =
+                'No se encontró coincidencia con los residentes registrados. Verifica la manzana y villa.';
+          } else if (e.response?.data != null) {
+            final data = e.response!.data;
+            if (data is Map && data['message'] != null) {
+              mensaje = data['message'].toString();
+            }
+          }
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(

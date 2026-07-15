@@ -8,7 +8,7 @@ class GuardiaIngresoDetalleScreen extends StatelessWidget {
   String _formatHora(String? iso) {
     if (iso == null) return '--:--';
     try {
-      final dt = DateTime.parse(iso).toLocal();
+      final dt = DateTime.parse(iso);
       final h = dt.hour.toString().padLeft(2, '0');
       final m = dt.minute.toString().padLeft(2, '0');
       return '$h:$m';
@@ -20,7 +20,7 @@ class GuardiaIngresoDetalleScreen extends StatelessWidget {
   String _formatFecha(String? iso) {
     if (iso == null) return '';
     try {
-      final dt = DateTime.parse(iso).toLocal();
+      final dt = DateTime.parse(iso);
       return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
     } catch (_) {
       return '';
