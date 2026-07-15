@@ -18,7 +18,6 @@ class _ReservasScreenState extends State<ReservasScreen> {
   final _api = ApiService();
   List _areas = [];
   bool _loading = true;
-  String _userId = '';
   String _residenteId = '';
 
   @override
@@ -29,12 +28,10 @@ class _ReservasScreenState extends State<ReservasScreen> {
 
   Future<void> _cargar() async {
     try {
-      final userId = await _storage.read(key: 'usuario_id') ?? '';
       final residenteId = await _storage.read(key: 'residente_id') ?? '';
       final res = await _api.get(ApiConstants.areasSociales);
       if (!mounted) return;
       setState(() {
-        _userId = userId;
         _residenteId = residenteId;
         _areas = res.data as List;
         _loading = false;
@@ -46,7 +43,9 @@ class _ReservasScreenState extends State<ReservasScreen> {
 
   IconData _iconArea(String nombre) {
     final n = nombre.toLowerCase();
-    if (n.contains('basket')) return Icons.sports_basketball_outlined;
+    if (n.contains('basket') || n.contains('básquet')) {
+      return Icons.sports_basketball_outlined;
+    }
     if (n.contains('futbol') || n.contains('fútbol')) {
       return Icons.sports_soccer_outlined;
     }
@@ -111,6 +110,7 @@ class _ReservasScreenState extends State<ReservasScreen> {
                               itemBuilder: (context, index) {
                                 final area = _areas[index];
                                 final nombre = area['nombre'] ?? '';
+                                final capacidad = area['capacidad_max'];
                                 final precioRaw = area['tarifa_reserva'] ??
                                     area['precio_reserva'];
                                 final precioValor = double.tryParse(
@@ -147,6 +147,13 @@ class _ReservasScreenState extends State<ReservasScreen> {
                                                     fontSize: 14,
                                                     color:
                                                         AppColors.textPrimary)),
+                                            if (capacidad != null)
+                                              Text(
+                                                  'Capacidad: $capacidad personas',
+                                                  style: const TextStyle(
+                                                      fontSize: 11,
+                                                      color: AppColors
+                                                          .textSecondary)),
                                             if (tienePrecio)
                                               Text(
                                                 'Valor de Reserva: \$${precioValor.toStringAsFixed(2)}',

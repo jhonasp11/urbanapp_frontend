@@ -1,9 +1,9 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
-import '../../../core/utils/input_formatters.dart';
 import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/custom_text_field.dart';
+import 'package:dio/dio.dart';
 
 class PerfilDatosScreen extends StatefulWidget {
   final Map<String, dynamic> usuario;
@@ -92,47 +92,12 @@ class _PerfilDatosScreenState extends State<PerfilDatosScreen> {
       return;
     }
 
-    if (_manzanaCtrl.text.trim().isEmpty || _villaCtrl.text.trim().isEmpty) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Ingresa la manzana y la villa'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    if (_manzanaCtrl.text.trim().length > 4) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('La manzana admite máximo 4 caracteres'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
-    if (_villaCtrl.text.trim().length > 2) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('La villa admite máximo 2 caracteres'),
-          backgroundColor: AppColors.error,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
-      return;
-    }
-
     setState(() => _isLoading = true);
     try {
       final userId = widget.usuario['id'];
       await _api.patch('/usuarios/$userId', data: {
         'correo': _correoCtrl.text.trim(),
         'telefono': _telefonoCtrl.text.trim(),
-        'manzana': _manzanaCtrl.text.trim(),
-        'villa': _villaCtrl.text.trim(),
       });
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
@@ -144,10 +109,17 @@ class _PerfilDatosScreenState extends State<PerfilDatosScreen> {
       );
       Navigator.pop(context);
     } catch (e) {
+      String mensaje = 'Error al actualizar los datos';
+      if (e is DioException && e.response?.data != null) {
+        final data = e.response!.data;
+        if (data is Map && data['message'] != null) {
+          mensaje = data['message'].toString();
+        }
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al actualizar los datos'),
+          SnackBar(
+            content: Text(mensaje),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),
@@ -271,7 +243,7 @@ class _PerfilDatosScreenState extends State<PerfilDatosScreen> {
                           hint: '',
                           prefixIcon: Icons.home_outlined,
                           controller: _manzanaCtrl,
-                          inputFormatters: [MayusculaAlfanumericoFormatter(4)],
+                          enabled: false,
                         ),
                       ),
                       const SizedBox(width: 12),
@@ -281,7 +253,7 @@ class _PerfilDatosScreenState extends State<PerfilDatosScreen> {
                           hint: '',
                           prefixIcon: Icons.villa_outlined,
                           controller: _villaCtrl,
-                          inputFormatters: [MayusculaAlfanumericoFormatter(2)],
+                          enabled: false,
                         ),
                       ),
                     ],

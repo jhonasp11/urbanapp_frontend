@@ -229,12 +229,12 @@ class _ReservasComprobanteScreenState extends State<ReservasComprobanteScreen> {
     } catch (e) {
       if (mounted) {
         String mensaje = 'Error al enviar comprobante';
-        try {
-          final response = (e as dynamic).response?.data;
-          if (response != null && response['message'] != null) {
-            mensaje = response['message'].toString();
+        if (e is DioException && e.response?.data != null) {
+          final data = e.response!.data;
+          if (data is Map && data['message'] != null) {
+            mensaje = data['message'].toString();
           }
-        } catch (_) {}
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(mensaje),

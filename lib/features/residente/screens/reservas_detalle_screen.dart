@@ -4,6 +4,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/constants/api_constants.dart';
 import 'reservas_comprobante_screen.dart';
+import 'package:dio/dio.dart';
 
 class ReservasDetalleScreen extends StatefulWidget {
   final Map<String, dynamic> reserva;
@@ -46,7 +47,7 @@ class _ReservasDetalleScreenState extends State<ReservasDetalleScreen> {
   String _labelEstado(String estado) {
     switch (estado) {
       case 'confirmada':
-        return 'CONFIRMADA';
+        return 'APROBADA';
       case 'pendiente':
         return 'PENDIENTE';
       case 'pendiente_pago':
@@ -56,7 +57,7 @@ class _ReservasDetalleScreenState extends State<ReservasDetalleScreen> {
       case 'cancelada':
         return 'CANCELADA';
       case 'denegada':
-        return 'DENEGADA';
+        return 'RECHAZADA';
       case 'expirada':
         return 'EXPIRADA';
       default:
@@ -105,9 +106,16 @@ class _ReservasDetalleScreenState extends State<ReservasDetalleScreen> {
       Navigator.pop(context);
     } catch (e) {
       if (mounted) {
+        String mensaje = 'Error al cancelar la reserva';
+        if (e is DioException && e.response?.data != null) {
+          final data = e.response!.data;
+          if (data is Map && data['message'] != null) {
+            mensaje = data['message'].toString();
+          }
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al cancelar la reserva'),
+          SnackBar(
+            content: Text(mensaje),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),
@@ -236,9 +244,11 @@ class _ReservasDetalleScreenState extends State<ReservasDetalleScreen> {
 
     final esPorPagar = estado == 'pendiente_pago';
     final esExpirada = estado == 'expirada';
-    final puedeCancel = estado == 'confirmada' ||
-        estado == 'pendiente_pago' ||
-        estado == 'pendiente';
+    final tienePago = pagos.isNotEmpty;
+    final puedeCancel = !tienePago &&
+        (estado == 'confirmada' ||
+            estado == 'pendiente_pago' ||
+            estado == 'pendiente');
 
     String duracion = '';
     try {
@@ -467,7 +477,7 @@ class _ReservasDetalleScreenState extends State<ReservasDetalleScreen> {
                         Icon(Icons.info_outline,
                             color: AppColors.error, size: 16),
                         SizedBox(width: 6),
-                        Text('MOTIVO DE RESERVA DENEGADA',
+                        Text('MOTIVO DE RECHAZO',
                             style: TextStyle(
                                 fontSize: 10,
                                 color: AppColors.error,
@@ -562,7 +572,7 @@ class _ReservasDetalleScreenState extends State<ReservasDetalleScreen> {
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Text(
-                  'Podrás cancelar esta reserva sin penalización hasta 24 horas antes del inicio del horario reservado.',
+                  'Podrás cancelar esta reserva hasta 2 horas antes del inicio del horario reservado.',
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 12, color: AppColors.error),
                 ),

@@ -23,6 +23,7 @@ class _ReservasHistorialScreenState extends State<ReservasHistorialScreen>
 
   final List<Map<String, String>> _filtrosEstado = [
     {'key': 'todos', 'label': 'Todos'},
+    {'key': 'completada', 'label': 'Completadas'},
     {'key': 'pendiente_pago', 'label': 'Por pagar'},
     {'key': 'pendiente', 'label': 'Pendientes'},
     {'key': 'confirmada', 'label': 'Aprobadas'},
@@ -89,6 +90,8 @@ class _ReservasHistorialScreenState extends State<ReservasHistorialScreen>
     switch (estado) {
       case 'confirmada':
         return AppColors.success;
+      case 'completada':
+        return AppColors.primary;
       case 'pendiente':
         return Colors.orange;
       case 'pendiente_pago':
@@ -108,6 +111,8 @@ class _ReservasHistorialScreenState extends State<ReservasHistorialScreen>
     switch (estado) {
       case 'confirmada':
         return 'APROBADA';
+      case 'completada':
+        return 'COMPLETADA';
       case 'pendiente':
         return 'PENDIENTE';
       case 'pendiente_pago':
@@ -214,7 +219,7 @@ class _ReservasHistorialScreenState extends State<ReservasHistorialScreen>
                     children: [
                       _buildLista(_filtrar('todos')),
                       _buildLista(_filtrar('futbol')),
-                      _buildLista(_filtrar('basket')),
+                      _buildLista(_filtrar('básquet')),
                       _buildLista(_filtrar('salon')),
                     ],
                   ),

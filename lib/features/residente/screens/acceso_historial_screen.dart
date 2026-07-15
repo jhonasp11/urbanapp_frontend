@@ -3,6 +3,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/constants/api_constants.dart';
 import 'acceso_detalle_screen.dart';
+import 'package:dio/dio.dart';
 
 class AccesoHistorialScreen extends StatefulWidget {
   final String userId;
@@ -18,6 +19,7 @@ class _AccesoHistorialScreenState extends State<AccesoHistorialScreen>
   late TabController _tabController;
   List _codigos = [];
   bool _loading = true;
+  bool _anulando = false;
 
   @override
   void initState() {
@@ -75,11 +77,14 @@ class _AccesoHistorialScreenState extends State<AccesoHistorialScreen>
     );
 
     if (confirmar != true) return;
+    if (_anulando) return;
+    setState(() => _anulando = true);
 
     try {
       await _api.patch('/codigos-qr/$codigoId/anular',
           data: {'residente_id': widget.userId});
       if (!mounted) return;
+      setState(() => _anulando = false);
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Código QR anulado exitosamente'),
@@ -90,9 +95,17 @@ class _AccesoHistorialScreenState extends State<AccesoHistorialScreen>
       await _cargar();
     } catch (e) {
       if (mounted) {
+        setState(() => _anulando = false);
+        String mensaje = 'Error al anular el código';
+        if (e is DioException && e.response?.data != null) {
+          final data = e.response!.data;
+          if (data is Map && data['message'] != null) {
+            mensaje = data['message'].toString();
+          }
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al anular el código'),
+          SnackBar(
+            content: Text(mensaje),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),
@@ -305,7 +318,9 @@ class _AccesoHistorialScreenState extends State<AccesoHistorialScreen>
                         const SizedBox(width: 8),
                         Expanded(
                           child: ElevatedButton.icon(
-                            onPressed: () => _anularCodigo(codigo['id']),
+                            onPressed: _anulando
+                                ? null
+                                : () => _anularCodigo(codigo['id']),
                             icon: const Icon(Icons.block_outlined, size: 14),
                             label: const Text('Anular',
                                 style: TextStyle(fontSize: 12)),

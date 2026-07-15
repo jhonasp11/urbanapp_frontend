@@ -31,7 +31,7 @@ class PagosDetalleScreen extends StatelessWidget {
   String _formatFecha(String? isoStr) {
     if (isoStr == null || isoStr.isEmpty) return 'Sin fecha';
     try {
-      final dt = DateTime.parse(isoStr).toLocal();
+      final dt = DateTime.parse(isoStr);
       return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
     } catch (_) {
       return isoStr.substring(0, 10);

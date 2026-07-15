@@ -119,9 +119,16 @@ class _PerfilScreenState extends State<PerfilScreen> {
       );
     } catch (e) {
       if (mounted) {
+        String mensaje = 'No se pudo actualizar la foto';
+        if (e is DioException && e.response?.data != null) {
+          final data = e.response!.data;
+          if (data is Map && data['message'] != null) {
+            mensaje = data['message'].toString();
+          }
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('No se pudo actualizar la foto'),
+          SnackBar(
+            content: Text(mensaje),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),

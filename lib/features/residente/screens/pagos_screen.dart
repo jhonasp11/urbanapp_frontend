@@ -5,6 +5,7 @@ import '../../../core/services/api_service.dart';
 import '../../../core/constants/api_constants.dart';
 import 'pagos_historial_screen.dart';
 import 'subir_comprobante_screen.dart';
+import 'estado_cuenta_screen.dart';
 
 class PagosScreen extends StatefulWidget {
   const PagosScreen({super.key});
@@ -391,6 +392,32 @@ class _PagosScreenState extends State<PagosScreen> {
                         child: const Text('Consulta tu Historial de Pagos',
                             style: TextStyle(
                                 fontSize: 15, fontWeight: FontWeight.w600)),
+                      ),
+                    ),
+                    const SizedBox(height: 10),
+                    SizedBox(
+                      width: double.infinity,
+                      child: OutlinedButton.icon(
+                        onPressed: () => Navigator.push(
+                          context,
+                          MaterialPageRoute(
+                            builder: (_) =>
+                                EstadoCuentaScreen(residenteId: _residenteId),
+                          ),
+                        ),
+                        icon: const Icon(Icons.description_outlined,
+                            size: 18, color: AppColors.primary),
+                        label: const Text('Estado de Cuenta',
+                            style: TextStyle(
+                                fontSize: 15,
+                                fontWeight: FontWeight.w600,
+                                color: AppColors.primary)),
+                        style: OutlinedButton.styleFrom(
+                          side: const BorderSide(color: AppColors.primary),
+                          shape: RoundedRectangleBorder(
+                              borderRadius: BorderRadius.circular(10)),
+                          padding: const EdgeInsets.symmetric(vertical: 14),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 8),

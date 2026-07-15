@@ -7,6 +7,7 @@ import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/custom_text_field.dart';
 import 'acceso_historial_screen.dart';
 import 'acceso_qr_generado_screen.dart';
+import 'package:dio/dio.dart';
 
 class AccesoScreen extends StatefulWidget {
   const AccesoScreen({super.key});
@@ -62,6 +63,62 @@ class _AccesoScreenState extends State<AccesoScreen> {
       });
     } catch (e) {
       if (mounted) setState(() => _loadingVisitantes = false);
+    }
+  }
+
+  Future<void> _eliminarVisitanteGuardado(dynamic visitante) async {
+    final nombre = visitante['nombre_visitante'] ?? 'este visitante';
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Eliminar visitante guardado'),
+        content: Text('¿Deseas quitar a $nombre de tus visitantes guardados?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            style: ElevatedButton.styleFrom(
+                backgroundColor: AppColors.error,
+                foregroundColor: AppColors.white),
+            child: const Text('Eliminar'),
+          ),
+        ],
+      ),
+    );
+    if (confirmar != true) return;
+
+    try {
+      await _api.patch(
+          '${ApiConstants.visitantes}/${visitante['id']}/eliminar-guardado');
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Visitante eliminado de guardados'),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      await _cargarVisitantes();
+    } catch (e) {
+      if (mounted) {
+        String mensaje = 'Error al eliminar el visitante';
+        if (e is DioException && e.response?.data != null) {
+          final data = e.response!.data;
+          if (data is Map && data['message'] != null) {
+            mensaje = data['message'].toString();
+          }
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(mensaje),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     }
   }
 
@@ -203,9 +260,6 @@ class _AccesoScreenState extends State<AccesoScreen> {
           '${fechaInicioCompleta.year}-${_pad(fechaInicioCompleta.month)}-${_pad(fechaInicioCompleta.day)}T${_pad(fechaInicioCompleta.hour)}:${_pad(fechaInicioCompleta.minute)}:00';
       final fechaFinStr =
           '${fechaFinCompleta.year}-${_pad(fechaFinCompleta.month)}-${_pad(fechaFinCompleta.day)}T${_pad(fechaFinCompleta.hour)}:${_pad(fechaFinCompleta.minute)}:00';
-      final fechaBaseStr =
-          '${_fechaInicio!.year}-${_pad(_fechaInicio!.month)}-${_pad(_fechaInicio!.day)}T00:00:00';
-
       String idVisitante = visitanteId;
 
       // Si es nuevo visitante, crearlo primero
@@ -223,7 +277,6 @@ class _AccesoScreenState extends State<AccesoScreen> {
           'guardado': _guardarVisitante,
         });
         idVisitante = resVisitante.data['id'];
-        print('VISITANTE ID: $idVisitante');
       }
 
       final resQr = await _api.post(ApiConstants.generarQr, data: {
@@ -259,17 +312,11 @@ class _AccesoScreenState extends State<AccesoScreen> {
     } catch (e) {
       if (mounted) {
         String mensaje = 'Error al generar el código QR';
-        final errorStr = e.toString();
-        if (errorStr.contains('400')) {
-          if (errorStr.contains('24')) {
-            mensaje = 'El acceso no puede durar más de 24 horas';
-          } else if (errorStr.contains('activo')) {
-            mensaje = 'Ya existe un código QR activo para este visitante';
-          } else {
-            mensaje = 'Datos inválidos, verifica la información ingresada';
+        if (e is DioException && e.response?.data != null) {
+          final data = e.response!.data;
+          if (data is Map && data['message'] != null) {
+            mensaje = data['message'].toString();
           }
-        } else if (errorStr.contains('500')) {
-          mensaje = 'Error en el servidor, intenta nuevamente';
         }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -638,6 +685,11 @@ class _AccesoScreenState extends State<AccesoScreen> {
                                     color: AppColors.textSecondary)),
                           ],
                         ),
+                      ),
+                      IconButton(
+                        icon: const Icon(Icons.delete_outline,
+                            color: AppColors.error, size: 20),
+                        onPressed: () => _eliminarVisitanteGuardado(v),
                       ),
                       const Icon(Icons.chevron_right,
                           color: AppColors.textSecondary),

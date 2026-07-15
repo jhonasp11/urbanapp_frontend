@@ -7,6 +7,7 @@ import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:path_provider/path_provider.dart';
 import '../../../core/constants/app_colors.dart';
+import 'package:dio/dio.dart';
 
 class AccesoDetalleScreen extends StatefulWidget {
   final Map<String, dynamic> codigo;
@@ -70,9 +71,16 @@ class _AccesoDetalleScreenState extends State<AccesoDetalleScreen> {
       await Share.shareXFiles([XFile(file.path)]);
     } catch (e) {
       if (mounted) {
+        String mensaje = 'Error al compartir el código QR';
+        if (e is DioException && e.response?.data != null) {
+          final data = e.response!.data;
+          if (data is Map && data['message'] != null) {
+            mensaje = data['message'].toString();
+          }
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al compartir el código QR'),
+          SnackBar(
+            content: Text(mensaje),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),
