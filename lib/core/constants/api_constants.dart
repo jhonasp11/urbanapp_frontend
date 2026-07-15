@@ -1,7 +1,6 @@
 class ApiConstants {
   static const String baseUrl = 'http://127.0.0.1:3000/api';
   static const String login = '/auth/login';
-  static const String recuperarContrasena = '/auth/recuperar-contrasena';
   static const String registro = '/usuarios/registro';
   static const String residentes = '/usuarios/residentes';
   static const String residentesPendientes = '/usuarios/residentes/pendientes';
@@ -9,7 +8,6 @@ class ApiConstants {
   static const String pagos = '/pagos';
   static const String visitantes = '/visitantes';
   static const String generarQr = '/codigos-qr/generar';
-  static const String escanearQr = '/codigos-qr/escanear';
   static const String validarQr = '/codigos-qr/validar';
   static const String confirmarIngreso = '/codigos-qr/confirmar-ingreso';
   static const String ingresoManual = '/codigos-qr/ingreso-manual';

@@ -37,3 +37,21 @@ class PlacaFormatter extends TextInputFormatter {
     );
   }
 }
+
+/// Para nombre de usuario: bloquea espacios y símbolos.
+/// Permite letras, números y guión bajo. Máximo 12 caracteres.
+class UsuarioFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(
+      TextEditingValue oldValue, TextEditingValue newValue) {
+    // Solo letras, números y guión bajo
+    final filtrado = newValue.text.replaceAll(RegExp(r'[^a-zA-Z0-9_]'), '');
+    if (filtrado.length > 12) {
+      return oldValue;
+    }
+    return TextEditingValue(
+      text: filtrado,
+      selection: TextSelection.collapsed(offset: filtrado.length),
+    );
+  }
+}

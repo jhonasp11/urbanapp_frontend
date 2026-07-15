@@ -55,4 +55,27 @@ class Validators {
     if (value.trim().length > 2) return 'Máximo 2 caracteres';
     return null;
   }
+
+  static String? usuario(String? value) {
+    if (value == null || value.trim().isEmpty) {
+      return 'El usuario es requerido';
+    }
+    final v = value.trim();
+    if (v.length < 6 || v.length > 12) {
+      return 'El usuario debe tener entre 6 y 12 caracteres';
+    }
+    if (!RegExp(r'^[a-zA-Z]').hasMatch(v)) {
+      return 'Debe comenzar con una letra';
+    }
+    if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(v)) {
+      return 'Solo se permiten letras, números y guión bajo';
+    }
+    if (!v.contains(RegExp(r'[A-Z]'))) {
+      return 'Debe contener al menos una mayúscula';
+    }
+    if (!v.contains(RegExp(r'[0-9]'))) {
+      return 'Debe contener al menos un número';
+    }
+    return null;
+  }
 }
