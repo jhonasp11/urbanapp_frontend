@@ -81,7 +81,8 @@ class _NotificacionesScreenState extends State<NotificacionesScreen> {
   String _tiempoRelativo(String? fechaStr) {
     if (fechaStr == null) return '';
     try {
-      final fecha = DateTime.parse(fechaStr);
+// La BD guarda hora local de Ecuador marcada como UTC; la parseamos como local
+      final fecha = DateTime.parse(fechaStr.replaceAll('Z', ''));
       final diff = DateTime.now().difference(fecha);
       if (diff.inMinutes < 60) return 'Hace ${diff.inMinutes} min';
       if (diff.inHours < 24) return 'Hace ${diff.inHours} h';
