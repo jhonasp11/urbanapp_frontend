@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
 import '../../../shared/widgets/custom_button.dart';
+import 'package:dio/dio.dart';
 
 class NuevaContrasenaScreen extends StatefulWidget {
   final String correo;
@@ -145,12 +146,12 @@ class _NuevaContrasenaScreenState extends State<NuevaContrasenaScreen> {
       if (mounted) {
         setState(() => _isLoading = false);
         String mensaje = 'No se pudo actualizar la contraseña';
-        try {
-          final response = (e as dynamic).response?.data;
-          if (response != null && response['message'] != null) {
-            mensaje = response['message'].toString();
+        if (e is DioException && e.response?.data != null) {
+          final data = e.response!.data;
+          if (data is Map && data['message'] != null) {
+            mensaje = data['message'].toString();
           }
-        } catch (_) {}
+        }
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(mensaje),
           backgroundColor: AppColors.error,

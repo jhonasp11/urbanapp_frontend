@@ -5,6 +5,7 @@ import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/custom_text_field.dart';
 import '../../../core/utils/validators.dart';
 import 'verificar_codigo_screen.dart';
+import 'package:dio/dio.dart';
 
 class RecoverPasswordScreen extends StatefulWidget {
   const RecoverPasswordScreen({super.key});
@@ -52,10 +53,16 @@ class _RecoverPasswordScreenState extends State<RecoverPasswordScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
+        String mensaje = 'No se pudo procesar la solicitud. Intenta de nuevo.';
+        if (e is DioException && e.response?.data != null) {
+          final data = e.response!.data;
+          if (data is Map && data['message'] != null) {
+            mensaje = data['message'].toString();
+          }
+        }
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content:
-                Text('No se pudo procesar la solicitud. Intenta de nuevo.'),
+          SnackBar(
+            content: Text(mensaje),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),

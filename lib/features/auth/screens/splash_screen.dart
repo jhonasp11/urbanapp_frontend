@@ -53,19 +53,20 @@ class _SplashScreenState extends State<SplashScreen> {
         break;
       default:
         await _storage.deleteAll();
+        if (!mounted) return;
         Navigator.pushReplacementNamed(context, '/login');
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
+    return const Scaffold(
       backgroundColor: AppColors.white,
       body: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            const Text(
+            Text(
               'Urban App',
               style: TextStyle(
                 fontSize: 28,
@@ -73,8 +74,8 @@ class _SplashScreenState extends State<SplashScreen> {
                 color: AppColors.primary,
               ),
             ),
-            const SizedBox(height: 24),
-            const CircularProgressIndicator(),
+            SizedBox(height: 24),
+            CircularProgressIndicator(),
           ],
         ),
       ),

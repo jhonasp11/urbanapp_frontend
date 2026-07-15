@@ -4,8 +4,8 @@ import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/custom_text_field.dart';
 import '../services/auth_service.dart';
 import 'recover_password_screen.dart';
-import '../../../core/constants/api_constants.dart';
 import '../../../core/services/notification_service.dart';
+import 'package:dio/dio.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -56,6 +56,7 @@ class _LoginScreenState extends State<LoginScreen> {
             .timeout(const Duration(seconds: 5));
       } catch (_) {}
 
+      if (!mounted) return;
       switch (rol) {
         case 'residente':
           Navigator.pushReplacementNamed(context, '/residente/home');
@@ -70,7 +71,14 @@ class _LoginScreenState extends State<LoginScreen> {
           _showSnack('Rol no reconocido', isError: true);
       }
     } catch (e) {
-      _showSnack('Usuario o contraseña incorrectos', isError: true);
+      String mensaje = 'Usuario o contraseña incorrectos';
+      if (e is DioException && e.response?.data != null) {
+        final data = e.response!.data;
+        if (data is Map && data['message'] != null) {
+          mensaje = data['message'].toString();
+        }
+      }
+      _showSnack(mensaje, isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }

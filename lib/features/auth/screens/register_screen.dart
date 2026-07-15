@@ -30,6 +30,14 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _aceptaPrivacidad = false;
   bool _registroExitoso = false;
 
+  // Manzanas y villas desde la BD
+  List<int> _manzanasDisponibles = [];
+  List<int> _villasDisponibles = [];
+  int? _manzanaSeleccionada;
+  int? _villaSeleccionada;
+  bool _cargandoManzanas = false;
+  bool _cargandoVillas = false;
+
   final _cedulaCtrl = TextEditingController();
   final _nombresCtrl = TextEditingController();
   final _apellidosCtrl = TextEditingController();
@@ -45,6 +53,17 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool get _passNum => _contrasenaCtrl.text.contains(RegExp(r'[0-9]'));
   bool get _passEsp =>
       _contrasenaCtrl.text.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>]'));
+
+  // El usuario cumple todo el patrón: 6-12, empieza con letra, 1 mayúscula, 1 número, solo letras/números/_
+  bool get _usuarioValido {
+    final u = _usuarioCtrl.text.trim();
+    return u.length >= 6 &&
+        u.length <= 12 &&
+        RegExp(r'^[a-zA-Z]').hasMatch(u) &&
+        RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(u) &&
+        u.contains(RegExp(r'[A-Z]')) &&
+        u.contains(RegExp(r'[0-9]'));
+  }
 
   @override
   void dispose() {
@@ -96,6 +115,161 @@ class _RegisterScreenState extends State<RegisterScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  Future<void> _cargarManzanas() async {
+    setState(() => _cargandoManzanas = true);
+    try {
+      final res = await _api.get('/manzanas/numeros');
+      final lista = (res.data as List).map((e) => e as int).toList();
+      if (!mounted) return;
+      setState(() {
+        _manzanasDisponibles = lista;
+        _cargandoManzanas = false;
+      });
+    } catch (e) {
+      if (mounted) setState(() => _cargandoManzanas = false);
+    }
+  }
+
+  Future<void> _cargarVillas(int manzana) async {
+    setState(() {
+      _cargandoVillas = true;
+      _villasDisponibles = [];
+      _villaSeleccionada = null;
+    });
+    try {
+      final res = await _api.get('/manzanas/numero/$manzana/villas');
+      final lista = (res.data as List).map((e) => e as int).toList();
+      if (!mounted) return;
+      setState(() {
+        _villasDisponibles = lista;
+        _cargandoVillas = false;
+      });
+    } catch (e) {
+      if (mounted) setState(() => _cargandoVillas = false);
+    }
+  }
+
+  // Abre un selector con buscador para elegir de una lista de números
+  Future<int?> _seleccionarConBuscador({
+    required String titulo,
+    required List<int> opciones,
+    required String prefijo,
+  }) async {
+    final controller = TextEditingController();
+    List<int> filtradas = List.from(opciones);
+
+    return showModalBottomSheet<int>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (ctx) => StatefulBuilder(
+        builder: (ctx, setModalState) => Container(
+          height: MediaQuery.of(ctx).size.height * 0.7,
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(ctx).viewInsets.bottom,
+          ),
+          decoration: const BoxDecoration(
+            color: AppColors.white,
+            borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          ),
+          child: Column(
+            children: [
+              const SizedBox(height: 12),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: AppColors.border,
+                  borderRadius: BorderRadius.circular(2),
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Text(titulo,
+                    style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary)),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 16),
+                child: TextField(
+                  controller: controller,
+                  keyboardType: TextInputType.number,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: 'Buscar número...',
+                    prefixIcon: const Icon(Icons.search,
+                        color: AppColors.textSecondary),
+                    border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppColors.border)),
+                    enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppColors.border)),
+                    focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(10),
+                        borderSide: const BorderSide(color: AppColors.primary)),
+                  ),
+                  onChanged: (v) {
+                    setModalState(() {
+                      if (v.trim().isEmpty) {
+                        filtradas = List.from(opciones);
+                      } else {
+                        filtradas = opciones
+                            .where((n) => n.toString().contains(v.trim()))
+                            .toList();
+                      }
+                    });
+                  },
+                ),
+              ),
+              const SizedBox(height: 8),
+              Expanded(
+                child: filtradas.isEmpty
+                    ? const Center(
+                        child: Text('Sin resultados',
+                            style: TextStyle(color: AppColors.textSecondary)))
+                    : GridView.builder(
+                        padding: const EdgeInsets.all(16),
+                        gridDelegate:
+                            const SliverGridDelegateWithFixedCrossAxisCount(
+                          crossAxisCount: 4,
+                          childAspectRatio: 1.4,
+                          crossAxisSpacing: 10,
+                          mainAxisSpacing: 10,
+                        ),
+                        itemCount: filtradas.length,
+                        itemBuilder: (ctx, i) {
+                          final n = filtradas[i];
+                          return InkWell(
+                            onTap: () => Navigator.pop(ctx, n),
+                            borderRadius: BorderRadius.circular(10),
+                            child: Container(
+                              decoration: BoxDecoration(
+                                color: AppColors.background,
+                                borderRadius: BorderRadius.circular(10),
+                                border: Border.all(color: AppColors.border),
+                              ),
+                              child: Center(
+                                child: Text('$prefijo $n',
+                                    style: const TextStyle(
+                                        fontSize: 14,
+                                        fontWeight: FontWeight.w600,
+                                        color: AppColors.textPrimary)),
+                              ),
+                            ),
+                          );
+                        },
+                      ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 
   void _showSnack(String msg, {bool isError = false}) {
@@ -384,6 +558,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                   _isLoading = false;
                   _step = 2;
                 });
+                if (_rol == 'residente') _cargarManzanas();
               } catch (e) {
                 String mensaje = 'Error al verificar los datos';
                 if (e is DioException && e.response?.data != null) {
@@ -423,30 +598,148 @@ class _RegisterScreenState extends State<RegisterScreen> {
         children: [
           if (_rol == 'residente') ...[
             Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: CustomTextField(
-                    label: 'Manzana',
-                    hint: 'Ej. 0000',
-                    prefixIcon: Icons.home_outlined,
-                    controller: _manzanaCtrl,
-                    inputFormatters: [MayusculaAlfanumericoFormatter(4)],
-                    validator: Validators.manzana,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Manzana',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textSecondary)),
+                      const SizedBox(height: 6),
+                      InkWell(
+                        onTap: _cargandoManzanas
+                            ? null
+                            : () async {
+                                final sel = await _seleccionarConBuscador(
+                                  titulo: 'Selecciona la manzana',
+                                  opciones: _manzanasDisponibles,
+                                  prefijo: 'Mz',
+                                );
+                                if (sel != null) {
+                                  setState(() {
+                                    _manzanaSeleccionada = sel;
+                                    _manzanaCtrl.text = sel.toString();
+                                  });
+                                  _cargarVillas(sel);
+                                }
+                              },
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 14),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.home_outlined,
+                                  color: AppColors.textSecondary, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _cargandoManzanas
+                                      ? 'Cargando...'
+                                      : (_manzanaSeleccionada == null
+                                          ? 'Elige'
+                                          : 'Mz $_manzanaSeleccionada'),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: _manzanaSeleccionada == null
+                                        ? AppColors.textSecondary
+                                        : AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                              const Icon(Icons.arrow_drop_down,
+                                  color: AppColors.textSecondary),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: CustomTextField(
-                    label: 'Villa',
-                    hint: 'Ej. 00',
-                    prefixIcon: Icons.house_outlined,
-                    controller: _villaCtrl,
-                    inputFormatters: [MayusculaAlfanumericoFormatter(2)],
-                    validator: Validators.villa,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text('Villa',
+                          style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                              color: AppColors.textSecondary)),
+                      const SizedBox(height: 6),
+                      InkWell(
+                        onTap: (_manzanaSeleccionada == null || _cargandoVillas)
+                            ? null
+                            : () async {
+                                final sel = await _seleccionarConBuscador(
+                                  titulo: 'Selecciona la villa',
+                                  opciones: _villasDisponibles,
+                                  prefijo: 'Villa',
+                                );
+                                if (sel != null) {
+                                  setState(() {
+                                    _villaSeleccionada = sel;
+                                    _villaCtrl.text = sel.toString();
+                                  });
+                                }
+                              },
+                        borderRadius: BorderRadius.circular(10),
+                        child: Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 12, vertical: 14),
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(10),
+                            border: Border.all(color: AppColors.border),
+                          ),
+                          child: Row(
+                            children: [
+                              const Icon(Icons.house_outlined,
+                                  color: AppColors.textSecondary, size: 20),
+                              const SizedBox(width: 8),
+                              Expanded(
+                                child: Text(
+                                  _cargandoVillas
+                                      ? 'Cargando...'
+                                      : (_manzanaSeleccionada == null
+                                          ? 'Elige Mz'
+                                          : (_villaSeleccionada == null
+                                              ? 'Elige'
+                                              : 'Villa $_villaSeleccionada')),
+                                  style: TextStyle(
+                                    fontSize: 14,
+                                    color: _villaSeleccionada == null
+                                        ? AppColors.textSecondary
+                                        : AppColors.textPrimary,
+                                  ),
+                                ),
+                              ),
+                              const Icon(Icons.arrow_drop_down,
+                                  color: AppColors.textSecondary),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
+            const SizedBox(height: 6),
+            // Validación visual de manzana/villa obligatorias
+            if (_manzanaSeleccionada == null || _villaSeleccionada == null)
+              const Padding(
+                padding: EdgeInsets.only(left: 4, top: 2),
+                child: Text('Selecciona manzana y villa',
+                    style: TextStyle(fontSize: 11, color: AppColors.error)),
+              ),
             const SizedBox(height: 14),
           ],
           if (_rol == 'administrador') ...[
@@ -461,10 +754,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ],
           CustomTextField(
             label: 'Usuario',
-            hint: 'Nombre de usuario para iniciar sesión',
+            hint: 'Ej. Carlos_3 (6-12, 1 mayúscula y 1 número)',
             prefixIcon: Icons.person_outline,
             controller: _usuarioCtrl,
-            validator: (v) => Validators.requerido(v, 'Usuario'),
+            inputFormatters: [UsuarioFormatter()],
+            validator: Validators.usuario,
+            onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 14),
           CustomTextField(
@@ -502,6 +797,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
                         color: AppColors.textSecondary,
                         letterSpacing: 0.5)),
                 const SizedBox(height: 8),
+                _buildRequisito('Usuario válido', _usuarioValido),
                 _buildRequisito('Mínimo 8 caracteres', _pass8),
                 _buildRequisito('Al menos un número (0-9)', _passNum),
                 _buildRequisito('Un carácter especial (!@#\$%)', _passEsp),
@@ -590,6 +886,12 @@ class _RegisterScreenState extends State<RegisterScreen> {
             isLoading: _isLoading,
             onPressed: () async {
               if (!_formKey2.currentState!.validate()) return;
+              if (_rol == 'residente' &&
+                  (_manzanaSeleccionada == null ||
+                      _villaSeleccionada == null)) {
+                _showSnack('Selecciona manzana y villa', isError: true);
+                return;
+              }
               if (!_aceptaTerminos || !_aceptaPrivacidad) {
                 _showSnack(
                     'Debes aceptar los términos y la política de privacidad',

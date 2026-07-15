@@ -9,13 +9,11 @@ class AuthService {
   final _storage = const FlutterSecureStorage();
 
   Future<Map<String, dynamic>> login(String usuario, String contrasena) async {
-    print('AUTH: enviando a ${ApiConstants.baseUrl}${ApiConstants.login}');
     try {
       final response = await _api.post(
         ApiConstants.login,
         data: {'usuario': usuario, 'contrasena': contrasena},
       );
-      print('AUTH: respuesta ${response.data}');
       final data = response.data;
       await _storage.write(key: 'token', value: data['access_token']);
       await _storage.write(key: 'rol', value: data['rol']);
@@ -47,12 +45,9 @@ class AuthService {
             }
           } catch (_) {}
         }
-      } catch (e) {
-        print('AUTH JWT ERROR: $e');
-      }
+      } catch (_) {}
       return data;
     } catch (e) {
-      print('AUTH ERROR: $e');
       rethrow;
     }
   }
