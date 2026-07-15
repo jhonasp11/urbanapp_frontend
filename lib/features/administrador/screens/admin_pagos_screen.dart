@@ -1,5 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
 import 'admin_pago_detalle_screen.dart';
@@ -40,7 +39,7 @@ class _AdminPagosScreenState extends State<AdminPagosScreen> {
   String _formatFecha(String? isoStr) {
     if (isoStr == null) return 'Sin fecha';
     try {
-      final dt = DateTime.parse(isoStr).toLocal();
+      final dt = DateTime.parse(isoStr);
       return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
     } catch (_) {
       return '';

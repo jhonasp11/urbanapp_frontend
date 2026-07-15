@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
-import 'admin_crear_guardia_screen.dart';
 import 'admin_usuarios_registrados_screen.dart';
 import 'admin_detalle_solicitud_screen.dart';
 
@@ -43,22 +42,14 @@ class _AdminGestionUsuariosScreenState
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: AppColors.background,
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => const AdminCrearGuardiaScreen(),
-          ),
-        ).then((_) => _cargar()),
-        backgroundColor: AppColors.primary,
-        icon: const Icon(Icons.security_outlined, color: Colors.white),
-        label: const Text('Crear Guardia',
-            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w600)),
-      ),
       appBar: AppBar(
         backgroundColor: AppColors.white,
         elevation: 0,
-        automaticallyImplyLeading: false,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new_rounded,
+              color: AppColors.textPrimary),
+          onPressed: () => Navigator.pop(context),
+        ),
         title: const Text('Gestión de Usuarios',
             style: TextStyle(
                 fontWeight: FontWeight.w700,

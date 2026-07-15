@@ -1,8 +1,8 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/api_service.dart';
 import '../../../../shared/widgets/custom_button.dart';
+import 'package:dio/dio.dart';
 
 class AdminCambiarContrasenaScreen extends StatefulWidget {
   final String usuarioId;
@@ -101,12 +101,12 @@ class _AdminCambiarContrasenaScreenState
     } catch (e) {
       if (mounted) {
         String mensaje = 'Error al actualizar la contraseña';
-        try {
-          final response = (e as dynamic).response?.data;
-          if (response != null && response['message'] != null) {
-            mensaje = response['message'].toString();
+        if (e is DioException && e.response?.data != null) {
+          final data = e.response!.data;
+          if (data is Map && data['message'] != null) {
+            mensaje = data['message'].toString();
           }
-        } catch (_) {}
+        }
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text(mensaje),

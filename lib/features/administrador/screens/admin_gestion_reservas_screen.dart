@@ -30,30 +30,14 @@ class _AdminGestionReservasScreenState
       final todas = res.data as List;
       if (!mounted) return;
       setState(() {
-        _reservas = todas
-            .where((r) =>
-                r['estado'] == 'pendiente' &&
-                (r['area']?['nombre']
-                            ?.toString()
-                            .toLowerCase()
-                            .contains('futbol') ==
-                        true ||
-                    r['area']?['nombre']
-                            ?.toString()
-                            .toLowerCase()
-                            .contains('fútbol') ==
-                        true ||
-                    r['area']?['nombre']
-                            ?.toString()
-                            .toLowerCase()
-                            .contains('basket') ==
-                        true ||
-                    r['area']?['nombre']
-                            ?.toString()
-                            .toLowerCase()
-                            .contains('básquet') ==
-                        true))
-            .toList();
+        _reservas = todas.where((r) {
+          if (r['estado'] != 'pendiente') return false;
+          final tarifa =
+              double.tryParse((r['area']?['tarifa_reserva'] ?? 0).toString()) ??
+                  0.0;
+          return tarifa ==
+              0; // solo áreas sin costo (las pagadas se validan en Pagos)
+        }).toList();
         _loading = false;
       });
     } catch (e) {

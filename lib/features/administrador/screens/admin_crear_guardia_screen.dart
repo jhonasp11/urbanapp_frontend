@@ -3,9 +3,11 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/constants/api_constants.dart';
 import '../../../core/utils/validators.dart';
+import '../../../core/utils/input_formatters.dart';
 import '../../../shared/widgets/custom_button.dart';
 import '../../../shared/widgets/custom_text_field.dart';
 import 'package:dio/dio.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class AdminCrearGuardiaScreen extends StatefulWidget {
   const AdminCrearGuardiaScreen({super.key});
@@ -42,6 +44,17 @@ class _AdminCrearGuardiaScreenState extends State<AdminCrearGuardiaScreen> {
   bool get _passEsp =>
       _contrasenaCtrl.text.contains(RegExp(r'[!@#\$%^&*(),.?":{}|<>]'));
 
+  // El usuario cumple todo el patrón: 6-12, empieza con letra, 1 mayúscula, 1 número, solo letras/números/_
+  bool get _usuarioValido {
+    final u = _usuarioCtrl.text.trim();
+    return u.length >= 6 &&
+        u.length <= 12 &&
+        RegExp(r'^[a-zA-Z]').hasMatch(u) &&
+        RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(u) &&
+        u.contains(RegExp(r'[A-Z]')) &&
+        u.contains(RegExp(r'[0-9]'));
+  }
+
   @override
   void initState() {
     super.initState();
@@ -49,15 +62,12 @@ class _AdminCrearGuardiaScreenState extends State<AdminCrearGuardiaScreen> {
   }
 
   Future<void> _cargarTurnos() async {
-    print('CARGANDO TURNOS...');
     try {
       final res = await _api.get('/usuarios/turnos/lista');
-      print('TURNOS RESPONSE: ${res.data}');
       if (!mounted) return;
       setState(() => _turnos = res.data as List);
-      print('TURNOS CARGADOS: ${_turnos.length}');
     } catch (e) {
-      print('ERROR TURNOS: $e');
+      // Error silencioso al cargar turnos
     }
   }
 
@@ -76,6 +86,9 @@ class _AdminCrearGuardiaScreenState extends State<AdminCrearGuardiaScreen> {
 
   Future<void> _registrar() async {
     try {
+      const storage = FlutterSecureStorage();
+      final adminId = await storage.read(key: 'usuario_id') ?? '';
+
       final body = {
         'cedula': _cedulaCtrl.text.trim(),
         'nombres': _nombresCtrl.text.trim(),
@@ -89,6 +102,7 @@ class _AdminCrearGuardiaScreenState extends State<AdminCrearGuardiaScreen> {
         'acepta_privacidad': true,
         'id_guardia': _idGuardiaCtrl.text.trim(),
         'turno_id': _turnoSeleccionado,
+        'creado_por': adminId,
       };
       await _api.post(ApiConstants.registro, data: body);
       if (!mounted) return;
@@ -450,10 +464,12 @@ class _AdminCrearGuardiaScreenState extends State<AdminCrearGuardiaScreen> {
           const SizedBox(height: 14),
           CustomTextField(
             label: 'Usuario',
-            hint: 'Nombre de usuario para iniciar sesión',
+            hint: 'Ej. Carlos_3 (6-12, 1 mayúscula y 1 número)',
             prefixIcon: Icons.person_outline,
             controller: _usuarioCtrl,
-            validator: (v) => Validators.requerido(v, 'Usuario'),
+            inputFormatters: [UsuarioFormatter()],
+            validator: Validators.usuario,
+            onChanged: (_) => setState(() {}),
           ),
           const SizedBox(height: 14),
           CustomTextField(
@@ -491,6 +507,7 @@ class _AdminCrearGuardiaScreenState extends State<AdminCrearGuardiaScreen> {
                         color: AppColors.textSecondary,
                         letterSpacing: 0.5)),
                 const SizedBox(height: 8),
+                _buildRequisito('Usuario válido', _usuarioValido),
                 _buildRequisito('Mínimo 8 caracteres', _pass8),
                 _buildRequisito('Al menos un número (0-9)', _passNum),
                 _buildRequisito('Un carácter especial (!@#\$%)', _passEsp),

@@ -3,8 +3,9 @@ import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
+import 'package:dio/dio.dart';
 
-class AdminDetallePagoScreen extends StatelessWidget {
+class AdminDetallePagoScreen extends StatefulWidget {
   final Map<String, dynamic> pago;
   final VoidCallback onActualizado;
 
@@ -13,6 +14,13 @@ class AdminDetallePagoScreen extends StatelessWidget {
     required this.pago,
     required this.onActualizado,
   });
+
+  @override
+  State<AdminDetallePagoScreen> createState() => _AdminDetallePagoScreenState();
+}
+
+class _AdminDetallePagoScreenState extends State<AdminDetallePagoScreen> {
+  bool _procesando = false;
 
   Future<String> _obtenerAdminId() async {
     const storage = FlutterSecureStorage();
@@ -29,7 +37,7 @@ class AdminDetallePagoScreen extends StatelessWidget {
   String _formatFecha(String? isoStr) {
     if (isoStr == null) return 'Sin fecha';
     try {
-      final dt = DateTime.parse(isoStr).toLocal();
+      final dt = DateTime.parse(isoStr);
       return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year} ${dt.hour.toString().padLeft(2, '0')}:${dt.minute.toString().padLeft(2, '0')}';
     } catch (_) {
       return '';
@@ -37,8 +45,8 @@ class AdminDetallePagoScreen extends StatelessWidget {
   }
 
   void _verComprobante(BuildContext context) {
-    final comprobante = (pago['comprobante_url'] ?? '').toString();
-    final formato = (pago['formato_archivo'] ?? 'img').toString();
+    final comprobante = (widget.pago['comprobante_url'] ?? '').toString();
+    final formato = (widget.pago['formato_archivo'] ?? 'img').toString();
 
     if (comprobante.isEmpty) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -127,12 +135,14 @@ class AdminDetallePagoScreen extends StatelessWidget {
   }
 
   Future<void> _aprobar(BuildContext context) async {
+    if (_procesando) return;
+    setState(() => _procesando = true);
     final api = ApiService();
     final adminId = await _obtenerAdminId();
-    final residente = pago['residente'] ?? {};
+    final residente = widget.pago['residente'] ?? {};
     final usuarioId = residente['usuario_id'] ?? '';
     try {
-      await api.patch('/pagos/${pago['id']}/validar', data: {
+      await api.patch('/pagos/${widget.pago['id']}/validar', data: {
         'estado': 'aprobado',
         'validado_por': adminId,
       });
@@ -144,7 +154,7 @@ class AdminDetallePagoScreen extends StatelessWidget {
           'mensaje': 'Tu pago ha sido aprobado y registrado correctamente.',
         });
       } catch (_) {}
-      onActualizado();
+      widget.onActualizado();
       if (!context.mounted) return;
       Navigator.pushReplacement(
         context,
@@ -153,10 +163,18 @@ class AdminDetallePagoScreen extends StatelessWidget {
         ),
       );
     } catch (e) {
+      if (mounted) setState(() => _procesando = false);
       if (!context.mounted) return;
+      String mensaje = 'Error al aprobar el pago';
+      if (e is DioException && e.response?.data != null) {
+        final data = e.response!.data;
+        if (data is Map && data['message'] != null) {
+          mensaje = data['message'].toString();
+        }
+      }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error al aprobar el pago'),
+        SnackBar(
+          content: Text(mensaje),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ),
@@ -307,13 +325,15 @@ class AdminDetallePagoScreen extends StatelessWidget {
     );
 
     if (confirmar != true) return;
+    if (_procesando) return;
+    setState(() => _procesando = true);
 
     final api = ApiService();
     final adminId = await _obtenerAdminId();
-    final residente = pago['residente'] ?? {};
+    final residente = widget.pago['residente'] ?? {};
     final usuarioId = residente['usuario_id'] ?? '';
     try {
-      await api.patch('/pagos/${pago['id']}/validar', data: {
+      await api.patch('/pagos/${widget.pago['id']}/validar', data: {
         'estado': 'rechazado',
         'validado_por': adminId,
         'observacion_admin': motivoCtrl.text.trim(),
@@ -327,7 +347,7 @@ class AdminDetallePagoScreen extends StatelessWidget {
               'Tu pago ha sido rechazado. Motivo: ${motivoCtrl.text.trim()}',
         });
       } catch (_) {}
-      onActualizado();
+      widget.onActualizado();
       if (!context.mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -338,10 +358,18 @@ class AdminDetallePagoScreen extends StatelessWidget {
         ),
       );
     } catch (e) {
+      if (mounted) setState(() => _procesando = false);
       if (!context.mounted) return;
+      String mensaje = 'Error al rechazar el pago';
+      if (e is DioException && e.response?.data != null) {
+        final data = e.response!.data;
+        if (data is Map && data['message'] != null) {
+          mensaje = data['message'].toString();
+        }
+      }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error al rechazar el pago'),
+        SnackBar(
+          content: Text(mensaje),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ),
@@ -399,7 +427,7 @@ class AdminDetallePagoScreen extends StatelessWidget {
     ];
 
     // Obtener los meses (números) desde las alícuotas pagadas
-    final pagosAlicuotas = pago['pagos_alicuotas'] as List? ?? [];
+    final pagosAlicuotas = widget.pago['pagos_alicuotas'] as List? ?? [];
     final numerosMes = <int>[];
     for (final pa in pagosAlicuotas) {
       final alic = pa['alicuota'] ?? {};
@@ -415,7 +443,7 @@ class AdminDetallePagoScreen extends StatelessWidget {
     }
 
     // Respaldo: usar mes_pago del propio pago
-    final mesPago = pago['mes_pago'];
+    final mesPago = widget.pago['mes_pago'];
     if (mesPago is int && mesPago >= 1 && mesPago <= 12) {
       return nombresMes[mesPago];
     }
@@ -437,7 +465,7 @@ class AdminDetallePagoScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final residente = pago['residente'] ?? {};
+    final residente = widget.pago['residente'] ?? {};
     final usuario = residente['usuario'] ?? {};
     final nombres = usuario['nombres'] ?? '';
     final apellidos = usuario['apellidos'] ?? '';
@@ -445,18 +473,18 @@ class AdminDetallePagoScreen extends StatelessWidget {
     final villa = residente['villa'] ?? '';
     final fotoUrl = (residente['foto_url'] ?? '').toString();
     final monto =
-        double.tryParse((pago['monto_pagado'] ?? 0).toString()) ?? 0.0;
-    final observacion = pago['observacion_residente'] ?? '';
-    final metodo = pago['metodo_pago'] ?? '';
-    final banco = pago['banco'] ?? '';
-    final tipo = pago['tipo_pago'] ?? 'alicuota';
+        double.tryParse((widget.pago['monto_pagado'] ?? 0).toString()) ?? 0.0;
+    final observacion = widget.pago['observacion_residente'] ?? '';
+    final metodo = widget.pago['metodo_pago'] ?? '';
+    final banco = widget.pago['banco'] ?? '';
+    final tipo = widget.pago['tipo_pago'] ?? 'alicuota';
     final esReserva = tipo == 'reserva';
 
     // Para alícuota: construir el/los mes(es) que paga
     final mesesPagados = _mesesDePago();
 
     // Para reserva: fecha y horario
-    final reserva = pago['reserva'] ?? {};
+    final reserva = widget.pago['reserva'] ?? {};
     final fechaReserva = _formatFechaCorta(reserva['fecha_reserva']);
     final horaInicio = (reserva['hora_inicio'] ?? '').toString().length >= 16
         ? (reserva['hora_inicio']).toString().substring(11, 16)
@@ -579,7 +607,7 @@ class AdminDetallePagoScreen extends StatelessWidget {
                             : 'MES QUE PAGA',
                         mesesPagados),
                   _buildCampo('FECHA Y HORA DE ENVÍO',
-                      _formatFecha(pago['fecha_envio'])),
+                      _formatFecha(widget.pago['fecha_envio'])),
                   if (metodo.isNotEmpty) _buildCampo('MÉTODO', metodo),
                   if (banco.isNotEmpty) _buildCampo('BANCO', banco),
                   if (observacion.isNotEmpty)
@@ -612,8 +640,14 @@ class AdminDetallePagoScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _aprobar(context),
-                    icon: const Icon(Icons.check_circle_outline),
+                    onPressed: _procesando ? null : () => _aprobar(context),
+                    icon: _procesando
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.check_circle_outline),
                     label: const Text('Aprobar Pago',
                         style: TextStyle(
                             fontSize: 15, fontWeight: FontWeight.w600)),
@@ -630,7 +664,9 @@ class AdminDetallePagoScreen extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _mostrarModalRechazo(context),
+                    onPressed: _procesando
+                        ? null
+                        : () => _mostrarModalRechazo(context),
                     icon: const Icon(Icons.cancel_outlined,
                         color: AppColors.error),
                     label: const Text('Rechazar',

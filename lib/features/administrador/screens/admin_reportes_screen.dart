@@ -20,6 +20,7 @@ class _AdminReportesScreenState extends State<AdminReportesScreen> {
   String _mesSeleccionado = '';
   Map<String, dynamic>? _datos;
   bool _loading = false;
+  bool _descargando = false;
 
   final List<String> _meses = [
     'Enero',
@@ -69,7 +70,7 @@ class _AdminReportesScreenState extends State<AdminReportesScreen> {
     if (_moduloSeleccionado != 'usuarios' && _mesSeleccionado.isEmpty) return;
     setState(() => _loading = true);
     try {
-      final storage = const FlutterSecureStorage();
+      const storage = FlutterSecureStorage();
       final userId = await storage.read(key: 'usuario_id') ?? '';
       String adminId = '';
       try {
@@ -313,25 +314,32 @@ class _AdminReportesScreenState extends State<AdminReportesScreen> {
   }
 
   Widget _buildResumenUsuarios() {
-    final total = _datos?['total'] ?? 0;
-    final residentes = _datos?['total_residentes'] ?? 0;
+    final totalPadron = _datos?['total_padron'] ?? 0;
+    final conApp = _datos?['con_app'] ?? 0;
+    final sinApp = _datos?['sin_app'] ?? 0;
     final guardias = _datos?['total_guardias'] ?? 0;
     final administradores = _datos?['total_administradores'] ?? 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const Text('Resumen de Usuarios Registrados',
+        const Text('Resumen de Residentes',
             style: TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w700,
                 color: AppColors.textPrimary)),
+        const SizedBox(height: 4),
+        const Text('Padrón oficial comparado con el registro en la app.',
+            style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
         const SizedBox(height: 12),
-        _buildTarjetaReporte('TOTAL DE USUARIOS REGISTRADOS', '$total',
-            AppColors.primary, Icons.groups_outlined),
+        _buildTarjetaReporte('TOTAL DE RESIDENTES EN EL PADRÓN', '$totalPadron',
+            AppColors.primary, Icons.fact_check_outlined),
         const SizedBox(height: 12),
-        _buildTarjetaReporte('TOTAL DE RESIDENTES', '$residentes',
-            AppColors.success, Icons.home_outlined),
+        _buildTarjetaReporte('RESIDENTES CON LA APP', '$conApp',
+            AppColors.success, Icons.phone_android_outlined),
+        const SizedBox(height: 12),
+        _buildTarjetaReporte('RESIDENTES SIN LA APP', '$sinApp',
+            AppColors.error, Icons.phonelink_erase_outlined),
         const SizedBox(height: 12),
         _buildTarjetaReporte('TOTAL DE GUARDIAS', '$guardias', Colors.orange,
             Icons.security_outlined),
@@ -612,72 +620,93 @@ class _AdminReportesScreenState extends State<AdminReportesScreen> {
     return SizedBox(
       width: double.infinity,
       child: ElevatedButton.icon(
-        onPressed: () async {
-          final storage = const FlutterSecureStorage();
-          final userId = await storage.read(key: 'usuario_id') ?? '';
-          final token = await storage.read(key: 'token') ?? '';
-          String adminId = '';
-          try {
-            final resUser = await _api.get('/usuarios/$userId');
-            adminId = resUser.data['administrador']?['id'] ?? '';
-          } catch (_) {}
+        onPressed: _descargando
+            ? null
+            : () async {
+                if (_descargando) return;
+                setState(() => _descargando = true);
+                const storage = FlutterSecureStorage();
+                final userId = await storage.read(key: 'usuario_id') ?? '';
+                final token = await storage.read(key: 'token') ?? '';
+                String adminId = '';
+                try {
+                  final resUser = await _api.get('/usuarios/$userId');
+                  adminId = resUser.data['administrador']?['id'] ?? '';
+                } catch (_) {}
 
-          final mes = _meses.indexOf(_mesSeleccionado) + 1;
-          final anio = DateTime.now().year;
+                final mes = _meses.indexOf(_mesSeleccionado) + 1;
+                final anio = DateTime.now().year;
 
-          String url;
-          if (_moduloSeleccionado == 'usuarios') {
-            url =
-                '${ApiConstants.baseUrl}/reportes/usuarios?administrador_id=$adminId&formato=pdf';
-          } else if (_moduloSeleccionado == 'accesos') {
-            final fechaDesde = '$anio-${mes.toString().padLeft(2, '0')}-01';
-            final ultimoDia = DateTime(anio, mes + 1, 0).day;
-            final fechaHasta =
-                '$anio-${mes.toString().padLeft(2, '0')}-$ultimoDia';
-            url =
-                '${ApiConstants.baseUrl}/reportes/accesos?fecha_desde=$fechaDesde&fecha_hasta=$fechaHasta&administrador_id=$adminId&formato=pdf';
-          } else {
-            url =
-                '${ApiConstants.baseUrl}/reportes/$_moduloSeleccionado?mes=$mes&anio=$anio&administrador_id=$adminId&formato=pdf';
-          }
+                String url;
+                if (_moduloSeleccionado == 'usuarios') {
+                  url =
+                      '${ApiConstants.baseUrl}/reportes/usuarios?administrador_id=$adminId&formato=pdf';
+                } else if (_moduloSeleccionado == 'accesos') {
+                  final fechaDesde =
+                      '$anio-${mes.toString().padLeft(2, '0')}-01';
+                  final ultimoDia = DateTime(anio, mes + 1, 0).day;
+                  final fechaHasta =
+                      '$anio-${mes.toString().padLeft(2, '0')}-$ultimoDia';
+                  url =
+                      '${ApiConstants.baseUrl}/reportes/accesos?fecha_desde=$fechaDesde&fecha_hasta=$fechaHasta&administrador_id=$adminId&formato=pdf';
+                } else {
+                  url =
+                      '${ApiConstants.baseUrl}/reportes/$_moduloSeleccionado?mes=$mes&anio=$anio&administrador_id=$adminId&formato=pdf';
+                }
 
-          // Descargar PDF con dio y guardarlo
-          try {
-            final dir = await getApplicationDocumentsDirectory();
-            final filePath = _moduloSeleccionado == 'usuarios'
-                ? '${dir.path}/reporte_usuarios.pdf'
-                : '${dir.path}/reporte_${_moduloSeleccionado}_$mes-$anio.pdf';
+                // Descargar PDF con dio y guardarlo
+                try {
+                  final dir = await getApplicationDocumentsDirectory();
+                  final filePath = _moduloSeleccionado == 'usuarios'
+                      ? '${dir.path}/reporte_usuarios.pdf'
+                      : '${dir.path}/reporte_${_moduloSeleccionado}_$mes-$anio.pdf';
 
-            await Dio().download(
-              url,
-              filePath,
-              options: Options(headers: {'Authorization': 'Bearer $token'}),
-            );
+                  await Dio().download(
+                    url,
+                    filePath,
+                    options:
+                        Options(headers: {'Authorization': 'Bearer $token'}),
+                  );
 
-            final result = await OpenFilex.open(filePath);
-            if (result.type != ResultType.done) {
-              if (mounted) {
-                ScaffoldMessenger.of(context).showSnackBar(
-                  const SnackBar(
-                    content: Text('No se pudo abrir el PDF'),
-                    behavior: SnackBarBehavior.floating,
-                  ),
-                );
-              }
-            }
-          } catch (e) {
-            if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: Text('Error: $e'),
-                  backgroundColor: AppColors.error,
-                  behavior: SnackBarBehavior.floating,
-                ),
-              );
-            }
-          }
-        },
-        icon: const Icon(Icons.picture_as_pdf_outlined),
+                  final result = await OpenFilex.open(filePath);
+                  if (result.type != ResultType.done) {
+                    if (mounted) {
+                      ScaffoldMessenger.of(context).showSnackBar(
+                        const SnackBar(
+                          content: Text('No se pudo abrir el PDF'),
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                    }
+                  }
+                } catch (e) {
+                  String mensaje = 'No se pudo descargar el reporte';
+                  if (e is DioException && e.response?.data != null) {
+                    final data = e.response!.data;
+                    if (data is Map && data['message'] != null) {
+                      mensaje = data['message'].toString();
+                    }
+                  }
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(
+                        content: Text(mensaje),
+                        backgroundColor: AppColors.error,
+                        behavior: SnackBarBehavior.floating,
+                      ),
+                    );
+                  }
+                } finally {
+                  if (mounted) setState(() => _descargando = false);
+                }
+              },
+        icon: _descargando
+            ? const SizedBox(
+                width: 18,
+                height: 18,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2, color: Colors.white))
+            : const Icon(Icons.picture_as_pdf_outlined),
         label: const Text('Descargar Reporte PDF',
             style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
         style: ElevatedButton.styleFrom(

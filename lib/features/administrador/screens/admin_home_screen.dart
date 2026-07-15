@@ -9,7 +9,7 @@ import 'admin_pagos_screen.dart';
 import 'admin_reportes_screen.dart';
 import 'admin_perfil_screen.dart';
 import 'admin_gestion_reservas_screen.dart';
-import 'admin_gestion_alicuotas_screen.dart';
+import 'admin_gestiones_screen.dart';
 
 class AdminHomeScreen extends StatefulWidget {
   const AdminHomeScreen({super.key});
@@ -28,7 +28,7 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
   @override
   Widget build(BuildContext context) {
     final List<Widget> screens = [
-      const AdminGestionUsuariosScreen(),
+      const AdminGestionesScreen(),
       const AdminPagosScreen(),
       AdminInicioScreen(onNavigate: _navegarA),
       const AdminReportesScreen(),
@@ -62,9 +62,9 @@ class _AdminHomeScreenState extends State<AdminHomeScreen> {
         ),
         items: const [
           BottomNavigationBarItem(
-            icon: Icon(Icons.manage_accounts_outlined),
-            activeIcon: Icon(Icons.manage_accounts),
-            label: 'Usuarios',
+            icon: Icon(Icons.settings_suggest_outlined),
+            activeIcon: Icon(Icons.settings_suggest),
+            label: 'Gestiones',
           ),
           BottomNavigationBarItem(
             icon: Icon(Icons.payments_outlined),
@@ -282,7 +282,7 @@ class _AdminInicioScreenState extends State<AdminInicioScreen> {
                       ],
                     ),
                     const SizedBox(height: 24),
-                    const Text('Módulos Principales',
+                    const Text('Accesos Rápidos',
                         style: TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 15,
@@ -290,10 +290,14 @@ class _AdminInicioScreenState extends State<AdminInicioScreen> {
                     const SizedBox(height: 12),
                     _buildModulo(
                       icono: Icons.manage_accounts_outlined,
-                      titulo: 'Creación y Gestión de Usuarios',
-                      subtitulo:
-                          'Validar cuentas de residentes y crear accesos para guardias.',
-                      onTap: () => widget.onNavigate(0),
+                      titulo: 'Gestión de Usuarios',
+                      subtitulo: 'Validar residentes y administrar cuentas.',
+                      onTap: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AdminGestionUsuariosScreen(),
+                        ),
+                      ).then((_) => _cargar()),
                     ),
                     const SizedBox(height: 8),
                     _buildModulo(
@@ -306,31 +310,11 @@ class _AdminInicioScreenState extends State<AdminInicioScreen> {
                     _buildModulo(
                       icono: Icons.calendar_today_outlined,
                       titulo: 'Gestión de Reservas',
-                      subtitulo: 'Confirmar reservas de áreas deportivas.',
+                      subtitulo: 'Confirmar reservas de áreas sociales.',
                       onTap: () => Navigator.push(
                         context,
                         MaterialPageRoute(
                           builder: (_) => const AdminGestionReservasScreen(),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildModulo(
-                      icono: Icons.bar_chart_outlined,
-                      titulo: 'Ver Reportes',
-                      subtitulo: 'Estadísticas mensuales.',
-                      onTap: () => widget.onNavigate(3),
-                    ),
-                    const SizedBox(height: 8),
-                    _buildModulo(
-                      icono: Icons.receipt_long_outlined,
-                      titulo: 'Gestión de Alícuotas',
-                      subtitulo:
-                          'Generar alícuotas mensuales para todos los residentes.',
-                      onTap: () => Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (_) => const AdminGestionAlicuotasScreen(),
                         ),
                       ),
                     ),

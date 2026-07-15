@@ -15,7 +15,7 @@ class AdminDocumentosScreen extends StatefulWidget {
 
 class _AdminDocumentosScreenState extends State<AdminDocumentosScreen> {
   final _api = ApiService();
-  Map<String, dynamic?> _documentos = {
+  Map<String, dynamic> _documentos = {
     'reglamento': null,
     'terminos_condiciones': null,
     'politica_privacidad': null,
@@ -45,7 +45,7 @@ class _AdminDocumentosScreenState extends State<AdminDocumentosScreen> {
     try {
       final res = await _api.get('/documentos');
       final lista = res.data as List;
-      final Map<String, dynamic?> docs = {
+      final Map<String, dynamic> docs = {
         'reglamento': null,
         'terminos_condiciones': null,
         'politica_privacidad': null,
@@ -69,7 +69,7 @@ class _AdminDocumentosScreenState extends State<AdminDocumentosScreen> {
   String _formatFecha(String? isoStr) {
     if (isoStr == null) return 'Sin fecha';
     try {
-      final dt = DateTime.parse(isoStr).toLocal();
+      final dt = DateTime.parse(isoStr);
       return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
     } catch (_) {
       return 'Sin fecha';
@@ -289,7 +289,7 @@ class _AdminModificarDocumentoScreenState
   String _formatFechaISO(String? isoStr) {
     if (isoStr == null) return 'Sin fecha';
     try {
-      final dt = DateTime.parse(isoStr).toLocal();
+      final dt = DateTime.parse(isoStr);
       return _formatFecha(dt);
     } catch (_) {
       return 'Sin fecha';
@@ -380,10 +380,17 @@ class _AdminModificarDocumentoScreenState
         ),
       );
     } catch (e) {
+      String mensaje = 'Error al actualizar el documento';
+      if (e is DioException && e.response?.data != null) {
+        final data = e.response!.data;
+        if (data is Map && data['message'] != null) {
+          mensaje = data['message'].toString();
+        }
+      }
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Error al actualizar el documento'),
+          SnackBar(
+            content: Text(mensaje),
             backgroundColor: AppColors.error,
             behavior: SnackBarBehavior.floating,
           ),

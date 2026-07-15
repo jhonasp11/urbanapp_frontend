@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../../core/constants/app_colors.dart';
 import '../../../../core/services/api_service.dart';
+import 'package:dio/dio.dart';
 
 class AdminDatosPersonalesScreen extends StatefulWidget {
   final Map<String, dynamic> usuario;
@@ -81,9 +82,16 @@ class _AdminDatosPersonalesScreenState
       ));
       Navigator.pop(context);
     } catch (e) {
+      String mensaje = 'Error al actualizar los datos';
+      if (e is DioException && e.response?.data != null) {
+        final data = e.response!.data;
+        if (data is Map && data['message'] != null) {
+          mensaje = data['message'].toString();
+        }
+      }
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('Error al actualizar los datos'),
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(mensaje),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ));

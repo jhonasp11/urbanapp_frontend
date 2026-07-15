@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
+import 'admin_alicuotas_detalle_screen.dart';
+import 'package:dio/dio.dart';
 
 class AdminGestionAlicuotasScreen extends StatefulWidget {
   const AdminGestionAlicuotasScreen({super.key});
@@ -20,7 +22,9 @@ class _AdminGestionAlicuotasScreenState
   int _mesSeleccionado = DateTime.now().month;
   int _anioSeleccionado = DateTime.now().year;
   final _montoCtrl = TextEditingController();
-  DateTime _fechaVencimiento = DateTime.now().add(const Duration(days: 15));
+  // Fecha de vencimiento: siempre el día 5 del mes/año seleccionado
+  DateTime _fechaVencimiento =
+      DateTime(DateTime.now().year, DateTime.now().month, 5);
 
   final List<String> _meses = [
     'Enero',
@@ -49,22 +53,11 @@ class _AdminGestionAlicuotasScreenState
     return '${dt.day.toString().padLeft(2, '0')}/${dt.month.toString().padLeft(2, '0')}/${dt.year}';
   }
 
-  Future<void> _seleccionarFecha() async {
-    final picked = await showDatePicker(
-      context: context,
-      initialDate: _fechaVencimiento,
-      firstDate: DateTime.now(),
-      lastDate: DateTime(2028),
-      builder: (ctx, child) => Theme(
-        data: Theme.of(ctx).copyWith(
-          colorScheme: const ColorScheme.light(
-            primary: AppColors.primary,
-          ),
-        ),
-        child: child!,
-      ),
-    );
-    if (picked != null) setState(() => _fechaVencimiento = picked);
+  // Recalcula la fecha de vencimiento como el día 5 del mes/año seleccionado
+  void _actualizarFechaVencimiento() {
+    setState(() {
+      _fechaVencimiento = DateTime(_anioSeleccionado, _mesSeleccionado, 5);
+    });
   }
 
   Future<void> _generar() async {
@@ -182,12 +175,12 @@ class _AdminGestionAlicuotasScreenState
     } catch (e) {
       if (mounted) {
         String mensaje = 'Error al generar alícuotas';
-        try {
-          final response = (e as dynamic).response?.data;
-          if (response != null && response['message'] != null) {
-            mensaje = response['message'].toString();
+        if (e is DioException && e.response?.data != null) {
+          final data = e.response!.data;
+          if (data is Map && data['message'] != null) {
+            mensaje = data['message'].toString();
           }
-        } catch (_) {}
+        }
         setState(() => _isLoading = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
@@ -314,8 +307,10 @@ class _AdminGestionAlicuotasScreenState
                                       style: const TextStyle(fontSize: 13)),
                                 ),
                               ),
-                              onChanged: (v) =>
-                                  setState(() => _mesSeleccionado = v!),
+                              onChanged: (v) {
+                                setState(() => _mesSeleccionado = v!);
+                                _actualizarFechaVencimiento();
+                              },
                             ),
                           ],
                         ),
@@ -357,8 +352,10 @@ class _AdminGestionAlicuotasScreenState
                                           style:
                                               const TextStyle(fontSize: 13))))
                                   .toList(),
-                              onChanged: (v) =>
-                                  setState(() => _anioSeleccionado = v!),
+                              onChanged: (v) {
+                                setState(() => _anioSeleccionado = v!);
+                                _actualizarFechaVencimiento();
+                              },
                             ),
                           ],
                         ),
@@ -380,7 +377,7 @@ class _AdminGestionAlicuotasScreenState
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
                     decoration: InputDecoration(
-                      hintText: 'Ej. 28.13',
+                      hintText: 'Ej. 20,00',
                       prefixText: '\$ ',
                       hintStyle: const TextStyle(
                           color: AppColors.textSecondary, fontSize: 14),
@@ -402,7 +399,7 @@ class _AdminGestionAlicuotasScreenState
                   ),
                   const SizedBox(height: 16),
 
-                  // Fecha de vencimiento
+                  // Fecha de vencimiento (automática: día 5 del mes)
                   const Text('FECHA DE VENCIMIENTO',
                       style: TextStyle(
                           fontSize: 10,
@@ -410,30 +407,33 @@ class _AdminGestionAlicuotasScreenState
                           fontWeight: FontWeight.w600,
                           letterSpacing: 0.5)),
                   const SizedBox(height: 4),
-                  GestureDetector(
-                    onTap: _seleccionarFecha,
-                    child: Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: AppColors.white,
-                        borderRadius: BorderRadius.circular(8),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Row(
-                        children: [
-                          const Icon(Icons.calendar_today_outlined,
-                              color: AppColors.textSecondary, size: 18),
-                          const SizedBox(width: 8),
-                          Text(
-                            _formatFecha(_fechaVencimiento),
-                            style: const TextStyle(
-                                fontSize: 14, color: AppColors.textPrimary),
-                          ),
-                        ],
-                      ),
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 12, vertical: 12),
+                    decoration: BoxDecoration(
+                      color: AppColors.background,
+                      borderRadius: BorderRadius.circular(8),
+                      border: Border.all(color: AppColors.border),
                     ),
+                    child: Row(
+                      children: [
+                        const Icon(Icons.lock_outline,
+                            color: AppColors.textSecondary, size: 18),
+                        const SizedBox(width: 8),
+                        Text(
+                          _formatFecha(_fechaVencimiento),
+                          style: const TextStyle(
+                              fontSize: 14, color: AppColors.textPrimary),
+                        ),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  const Text(
+                    'La fecha de vencimiento se establece automáticamente el día 5 del mes seleccionado.',
+                    style:
+                        TextStyle(fontSize: 11, color: AppColors.textSecondary),
                   ),
                 ],
               ),
@@ -550,35 +550,39 @@ class _AdminGestionAlicuotasScreenState
                   ],
                 ),
               ),
-              if (errores.isNotEmpty) ...[
+              if (omitidas > 0 || errores.isNotEmpty) ...[
                 const SizedBox(height: 12),
-                Container(
+                SizedBox(
                   width: double.infinity,
-                  padding: const EdgeInsets.all(12),
-                  decoration: BoxDecoration(
-                    color: Colors.orange.withValues(alpha: 0.05),
-                    borderRadius: BorderRadius.circular(10),
-                    border:
-                        Border.all(color: Colors.orange.withValues(alpha: 0.3)),
-                  ),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      const Text('RESIDENTES OMITIDOS',
-                          style: TextStyle(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: Colors.orange,
-                              letterSpacing: 0.5)),
-                      const SizedBox(height: 8),
-                      ...errores.map((e) => Padding(
-                            padding: const EdgeInsets.only(bottom: 4),
-                            child: Text('• $e',
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.textSecondary)),
-                          )),
-                    ],
+                  child: OutlinedButton.icon(
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => AdminAlicuotasDetalleScreen(
+                            creadas: creadas,
+                            omitidas: omitidas,
+                            errores: errores,
+                            periodo:
+                                '${_meses[_mesSeleccionado - 1]} $_anioSeleccionado',
+                          ),
+                        ),
+                      );
+                    },
+                    icon: const Icon(Icons.list_alt_outlined,
+                        size: 18, color: Colors.orange),
+                    label: const Text('Ver detalle de creadas y omitidas',
+                        style: TextStyle(
+                            fontSize: 14,
+                            color: Colors.orange,
+                            fontWeight: FontWeight.w600)),
+                    style: OutlinedButton.styleFrom(
+                      side: BorderSide(
+                          color: Colors.orange.withValues(alpha: 0.5)),
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(10)),
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                    ),
                   ),
                 ),
               ],

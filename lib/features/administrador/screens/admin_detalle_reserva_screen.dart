@@ -2,8 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
+import 'package:dio/dio.dart';
 
-class AdminDetalleReservaScreen extends StatelessWidget {
+class AdminDetalleReservaScreen extends StatefulWidget {
   final Map<String, dynamic> reserva;
   final VoidCallback onActualizado;
 
@@ -12,6 +13,14 @@ class AdminDetalleReservaScreen extends StatelessWidget {
     required this.reserva,
     required this.onActualizado,
   });
+
+  @override
+  State<AdminDetalleReservaScreen> createState() =>
+      _AdminDetalleReservaScreenState();
+}
+
+class _AdminDetalleReservaScreenState extends State<AdminDetalleReservaScreen> {
+  bool _procesando = false;
 
   Future<String> _obtenerAdminId() async {
     const storage = FlutterSecureStorage();
@@ -46,14 +55,16 @@ class AdminDetalleReservaScreen extends StatelessWidget {
   }
 
   Future<void> _confirmar(BuildContext context) async {
+    if (_procesando) return;
+    setState(() => _procesando = true);
     final api = ApiService();
     final adminId = await _obtenerAdminId();
     try {
-      await api.patch('/reservas/${reserva['id']}/validar', data: {
+      await api.patch('/reservas/${widget.reserva['id']}/validar', data: {
         'estado': 'confirmada',
         'validado_por': adminId,
       });
-      onActualizado();
+      widget.onActualizado();
       if (!context.mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -64,10 +75,18 @@ class AdminDetalleReservaScreen extends StatelessWidget {
         ),
       );
     } catch (e) {
+      if (mounted) setState(() => _procesando = false);
       if (!context.mounted) return;
+      String mensaje = 'Error al confirmar la reserva';
+      if (e is DioException && e.response?.data != null) {
+        final data = e.response!.data;
+        if (data is Map && data['message'] != null) {
+          mensaje = data['message'].toString();
+        }
+      }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error al confirmar la reserva'),
+        SnackBar(
+          content: Text(mensaje),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ),
@@ -219,16 +238,18 @@ class AdminDetalleReservaScreen extends StatelessWidget {
     );
 
     if (confirmar != true) return;
+    if (_procesando) return;
+    setState(() => _procesando = true);
 
     final api = ApiService();
     final adminId = await _obtenerAdminId();
     try {
-      await api.patch('/reservas/${reserva['id']}/validar', data: {
+      await api.patch('/reservas/${widget.reserva['id']}/validar', data: {
         'estado': 'denegada',
         'validado_por': adminId,
         'observacion_admin': motivoCtrl.text.trim(),
       });
-      onActualizado();
+      widget.onActualizado();
       if (!context.mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -239,10 +260,18 @@ class AdminDetalleReservaScreen extends StatelessWidget {
         ),
       );
     } catch (e) {
+      if (mounted) setState(() => _procesando = false);
       if (!context.mounted) return;
+      String mensaje = 'Error al denegar la reserva';
+      if (e is DioException && e.response?.data != null) {
+        final data = e.response!.data;
+        if (data is Map && data['message'] != null) {
+          mensaje = data['message'].toString();
+        }
+      }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error al denegar la reserva'),
+        SnackBar(
+          content: Text(mensaje),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ),
@@ -284,18 +313,18 @@ class AdminDetalleReservaScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final residente = reserva['residente'] ?? {};
+    final residente = widget.reserva['residente'] ?? {};
     final usuario = residente['usuario'] ?? {};
     final nombres = usuario['nombres'] ?? '';
     final apellidos = usuario['apellidos'] ?? '';
     final manzana = residente['manzana'] ?? '';
     final villa = residente['villa'] ?? '';
     final fotoUrl = (residente['foto_url'] ?? '').toString();
-    final area = reserva['area'] ?? {};
+    final area = widget.reserva['area'] ?? {};
     final areaNombre = area['nombre'] ?? '';
-    final fecha = _formatFecha(reserva['fecha_reserva']);
-    final horaInicio = _formatHora(reserva['hora_inicio']);
-    final horaFin = _formatHora(reserva['hora_fin']);
+    final fecha = _formatFecha(widget.reserva['fecha_reserva']);
+    final horaInicio = _formatHora(widget.reserva['hora_inicio']);
+    final horaFin = _formatHora(widget.reserva['hora_fin']);
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -407,8 +436,14 @@ class AdminDetalleReservaScreen extends StatelessWidget {
               children: [
                 Expanded(
                   child: ElevatedButton.icon(
-                    onPressed: () => _confirmar(context),
-                    icon: const Icon(Icons.check_circle_outline),
+                    onPressed: _procesando ? null : () => _confirmar(context),
+                    icon: _procesando
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                                strokeWidth: 2, color: Colors.white))
+                        : const Icon(Icons.check_circle_outline),
                     label: const Text('Confirmar',
                         style: TextStyle(
                             fontSize: 15, fontWeight: FontWeight.w600)),
@@ -425,7 +460,7 @@ class AdminDetalleReservaScreen extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: OutlinedButton.icon(
-                    onPressed: () => _denegar(context),
+                    onPressed: _procesando ? null : () => _denegar(context),
                     icon: const Icon(Icons.cancel_outlined,
                         color: AppColors.error),
                     label: const Text('Denegar',

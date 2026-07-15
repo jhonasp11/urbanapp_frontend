@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
+import 'admin_padron_manzana_screen.dart';
+import 'package:dio/dio.dart';
 
-class AdminDetalleSolicitudScreen extends StatelessWidget {
+class AdminDetalleSolicitudScreen extends StatefulWidget {
   final Map<String, dynamic> usuario;
   final VoidCallback onActualizado;
 
@@ -13,8 +15,54 @@ class AdminDetalleSolicitudScreen extends StatelessWidget {
     required this.onActualizado,
   });
 
+  @override
+  State<AdminDetalleSolicitudScreen> createState() =>
+      _AdminDetalleSolicitudScreenState();
+}
+
+class _AdminDetalleSolicitudScreenState
+    extends State<AdminDetalleSolicitudScreen> {
+  bool _verificandoPadron = false;
+  bool? _padronVerificado;
+  bool _procesando = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _verificarPadron();
+  }
+
+  Future<void> _verificarPadron() async {
+    // Solo aplica a residentes
+    if (widget.usuario['rol'] != 'residente') return;
+    final res = widget.usuario['residente'] ?? {};
+    final cedula = widget.usuario['cedula'] ?? '';
+    final manzana = res['manzana'] ?? '';
+    final villa = res['villa'] ?? '';
+    if (cedula.isEmpty || manzana.isEmpty || villa.isEmpty) return;
+
+    setState(() => _verificandoPadron = true);
+    try {
+      final api = ApiService();
+      final r =
+          await api.get('/usuarios/padron/verificar/$cedula/$manzana/$villa');
+      if (!mounted) return;
+      setState(() {
+        _padronVerificado = r.data['verificado'] == true;
+        _verificandoPadron = false;
+      });
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _padronVerificado = false;
+          _verificandoPadron = false;
+        });
+      }
+    }
+  }
+
   Future<String> _obtenerAdminId() async {
-    final storage = const FlutterSecureStorage();
+    const storage = FlutterSecureStorage();
     final api = ApiService();
     final userId = await storage.read(key: 'usuario_id') ?? '';
     try {
@@ -56,14 +104,16 @@ class AdminDetalleSolicitudScreen extends StatelessWidget {
   }
 
   Future<void> _aprobar(BuildContext context) async {
+    if (_procesando) return;
+    setState(() => _procesando = true);
     final api = ApiService();
     final adminId = await _obtenerAdminId();
     try {
-      await api.patch('/usuarios/${usuario['id']}/estado',
+      await api.patch('/usuarios/${widget.usuario['id']}/estado',
           data: {'estado': 'aprobado', 'administrador_id': adminId});
       try {
         await api.post('/notificaciones', data: {
-          'usuario_id': usuario['id'],
+          'usuario_id': widget.usuario['id'],
           'tipo': 'sistema',
           'titulo': 'Cuenta aprobada',
           'mensaje':
@@ -71,24 +121,33 @@ class AdminDetalleSolicitudScreen extends StatelessWidget {
         });
       } catch (_) {}
 
-      onActualizado();
+      widget.onActualizado();
       if (!context.mounted) return;
 
       final nav = Navigator.of(context);
       nav.pushReplacement(
         MaterialPageRoute(
           builder: (_) => AdminAprobacionExitosaScreen(
-            nombres: '${usuario['nombres']} ${usuario['apellidos']}',
+            nombres:
+                '${widget.usuario['nombres']} ${widget.usuario['apellidos']}',
             ubicacion:
-                'Manzana ${usuario['residente']?['manzana']} - Villa ${usuario['residente']?['villa']}',
+                'Manzana ${widget.usuario['residente']?['manzana']} - Villa ${widget.usuario['residente']?['villa']}',
           ),
         ),
       );
     } catch (e) {
+      if (mounted) setState(() => _procesando = false);
       if (!context.mounted) return;
+      String mensaje = 'Error al aprobar el residente';
+      if (e is DioException && e.response?.data != null) {
+        final data = e.response!.data;
+        if (data is Map && data['message'] != null) {
+          mensaje = data['message'].toString();
+        }
+      }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error al aprobar el residente'),
+        SnackBar(
+          content: Text(mensaje),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ),
@@ -97,14 +156,16 @@ class AdminDetalleSolicitudScreen extends StatelessWidget {
   }
 
   Future<void> _cambiarEstado(BuildContext context, String nuevoEstado) async {
+    if (_procesando) return;
+    setState(() => _procesando = true);
     final api = ApiService();
     final adminId = await _obtenerAdminId();
     try {
-      await api.patch('/usuarios/${usuario['id']}/estado',
+      await api.patch('/usuarios/${widget.usuario['id']}/estado',
           data: {'estado': nuevoEstado, 'administrador_id': adminId});
       try {
         await api.post('/notificaciones', data: {
-          'usuario_id': usuario['id'],
+          'usuario_id': widget.usuario['id'],
           'tipo': 'sistema',
           'titulo': nuevoEstado == 'aprobado'
               ? 'Cuenta reactivada'
@@ -115,7 +176,7 @@ class AdminDetalleSolicitudScreen extends StatelessWidget {
         });
       } catch (_) {}
 
-      onActualizado();
+      widget.onActualizado();
       if (!context.mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -129,10 +190,18 @@ class AdminDetalleSolicitudScreen extends StatelessWidget {
         ),
       );
     } catch (e) {
+      if (mounted) setState(() => _procesando = false);
       if (!context.mounted) return;
+      String mensaje = 'Error al cambiar el estado';
+      if (e is DioException && e.response?.data != null) {
+        final data = e.response!.data;
+        if (data is Map && data['message'] != null) {
+          mensaje = data['message'].toString();
+        }
+      }
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Error al cambiar el estado'),
+        SnackBar(
+          content: Text(mensaje),
           backgroundColor: AppColors.error,
           behavior: SnackBarBehavior.floating,
         ),
@@ -265,11 +334,11 @@ class AdminDetalleSolicitudScreen extends StatelessWidget {
     final api = ApiService();
     final adminId = await _obtenerAdminId();
     try {
-      await api.patch('/usuarios/${usuario['id']}/estado',
+      await api.patch('/usuarios/${widget.usuario['id']}/estado',
           data: {'estado': 'rechazado', 'administrador_id': adminId});
       try {
         await api.post('/notificaciones', data: {
-          'usuario_id': usuario['id'],
+          'usuario_id': widget.usuario['id'],
           'tipo': 'sistema',
           'titulo': 'Solicitud rechazada',
           'mensaje':
@@ -277,7 +346,7 @@ class AdminDetalleSolicitudScreen extends StatelessWidget {
         });
       } catch (_) {}
 
-      onActualizado();
+      widget.onActualizado();
       if (!context.mounted) return;
       Navigator.of(context).pop();
       ScaffoldMessenger.of(context).showSnackBar(
@@ -344,18 +413,18 @@ class AdminDetalleSolicitudScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final nombres = usuario['nombres'] ?? '';
-    final apellidos = usuario['apellidos'] ?? '';
-    final res = usuario['residente'] ?? {};
+    final nombres = widget.usuario['nombres'] ?? '';
+    final apellidos = widget.usuario['apellidos'] ?? '';
+    final res = widget.usuario['residente'] ?? {};
     final manzana = res['manzana'] ?? '';
     final villa = res['villa'] ?? '';
-    final estado = usuario['estado'] ?? '';
+    final estado = widget.usuario['estado'] ?? '';
     final color = _colorEstado(estado);
 
     // Foto desde cualquier rol
-    final fotoUrl = (usuario['residente']?['foto_url'] ??
-            usuario['guardia']?['foto_url'] ??
-            usuario['administrador']?['foto_url'] ??
+    final fotoUrl = (widget.usuario['residente']?['foto_url'] ??
+            widget.usuario['guardia']?['foto_url'] ??
+            widget.usuario['administrador']?['foto_url'] ??
             '')
         .toString();
 
@@ -402,9 +471,9 @@ class AdminDetalleSolicitudScreen extends StatelessWidget {
                     fontWeight: FontWeight.w700,
                     color: AppColors.textPrimary)),
             Text(
-                usuario['rol'] == 'residente'
+                widget.usuario['rol'] == 'residente'
                     ? 'Manzana $manzana - Villa $villa'
-                    : _labelRolTexto(usuario['rol'] ?? ''),
+                    : _labelRolTexto(widget.usuario['rol'] ?? ''),
                 style: const TextStyle(
                     fontSize: 13, color: AppColors.textSecondary)),
             const SizedBox(height: 8),
@@ -436,13 +505,15 @@ class AdminDetalleSolicitudScreen extends StatelessWidget {
               ),
               child: Column(
                 children: [
-                  _buildCampo('CÉDULA DE IDENTIDAD', usuario['cedula'] ?? ''),
-                  _buildCampo('USUARIO', usuario['usuario'] ?? ''),
+                  _buildCampo(
+                      'CÉDULA DE IDENTIDAD', widget.usuario['cedula'] ?? ''),
+                  _buildCampo('USUARIO', widget.usuario['usuario'] ?? ''),
                   _buildCampo('NOMBRES', nombres),
                   _buildCampo('APELLIDOS', apellidos),
-                  _buildCampo('CORREO ELECTRÓNICO', usuario['correo'] ?? ''),
-                  _buildCampo('TELÉFONO', usuario['telefono'] ?? ''),
-                  if (usuario['rol'] == 'residente')
+                  _buildCampo(
+                      'CORREO ELECTRÓNICO', widget.usuario['correo'] ?? ''),
+                  _buildCampo('TELÉFONO', widget.usuario['telefono'] ?? ''),
+                  if (widget.usuario['rol'] == 'residente')
                     Row(
                       children: [
                         Expanded(child: _buildCampo('MANZANA', manzana)),
@@ -453,14 +524,126 @@ class AdminDetalleSolicitudScreen extends StatelessWidget {
                 ],
               ),
             ),
+            // Tarjeta de verificación contra el padrón (solo residentes)
+            if (widget.usuario['rol'] == 'residente') ...[
+              const SizedBox(height: 16),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(14),
+                decoration: BoxDecoration(
+                  color: _verificandoPadron
+                      ? AppColors.background
+                      : (_padronVerificado == true
+                          ? AppColors.success.withValues(alpha: 0.08)
+                          : AppColors.error.withValues(alpha: 0.08)),
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(
+                    color: _verificandoPadron
+                        ? AppColors.border
+                        : (_padronVerificado == true
+                            ? AppColors.success.withValues(alpha: 0.4)
+                            : AppColors.error.withValues(alpha: 0.4)),
+                  ),
+                ),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    _verificandoPadron
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : Icon(
+                            _padronVerificado == true
+                                ? Icons.verified_outlined
+                                : Icons.gpp_maybe_outlined,
+                            color: _padronVerificado == true
+                                ? AppColors.success
+                                : AppColors.error,
+                            size: 22,
+                          ),
+                    const SizedBox(width: 10),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            _verificandoPadron
+                                ? 'Verificando datos...'
+                                : (_padronVerificado == true
+                                    ? 'Residente verificado'
+                                    : 'Verificación fallida'),
+                            style: TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w700,
+                              color: _verificandoPadron
+                                  ? AppColors.textSecondary
+                                  : (_padronVerificado == true
+                                      ? AppColors.success
+                                      : AppColors.error),
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          if (!_verificandoPadron)
+                            Text(
+                              _padronVerificado == true
+                                  ? 'El residente ha sido verificado correctamente. La información de la vivienda y el número de cédula coinciden con los registros del sistema.'
+                                  : 'El sistema no pudo validar los datos del residente con los registros de la urbanización.',
+                              style: const TextStyle(
+                                fontSize: 12,
+                                color: AppColors.textSecondary,
+                                height: 1.4,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 12),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: () => Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => AdminPadronManzanaScreen(
+                        manzana: manzana.toString(),
+                      ),
+                    ),
+                  ),
+                  icon: const Icon(Icons.people_outline,
+                      color: AppColors.primary),
+                  label: Text('Ver padrón de la Manzana $manzana',
+                      style: const TextStyle(
+                          fontSize: 14,
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600)),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.primary),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
+                ),
+              ),
+            ],
             const SizedBox(height: 24),
             if (estado == 'pendiente') ...[
               Row(
                 children: [
                   Expanded(
                     child: ElevatedButton.icon(
-                      onPressed: () => _aprobar(context),
-                      icon: const Icon(Icons.person_outline),
+                      onPressed: _procesando ? null : () => _aprobar(context),
+                      icon: _procesando
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.person_outline),
                       label: const Text('Aprobar',
                           style: TextStyle(
                               fontSize: 15, fontWeight: FontWeight.w600)),
@@ -477,7 +660,9 @@ class AdminDetalleSolicitudScreen extends StatelessWidget {
                   const SizedBox(width: 12),
                   Expanded(
                     child: OutlinedButton.icon(
-                      onPressed: () => _mostrarModalRechazo(context),
+                      onPressed: _procesando
+                          ? null
+                          : () => _mostrarModalRechazo(context),
                       icon: const Icon(Icons.block_outlined,
                           color: AppColors.error),
                       label: const Text('Denegar',
@@ -499,7 +684,9 @@ class AdminDetalleSolicitudScreen extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: OutlinedButton.icon(
-                  onPressed: () => _cambiarEstado(context, 'desactivado'),
+                  onPressed: _procesando
+                      ? null
+                      : () => _cambiarEstado(context, 'desactivado'),
                   icon: const Icon(Icons.person_off_outlined,
                       color: AppColors.error),
                   label: const Text('Desactivar cuenta',
@@ -519,7 +706,9 @@ class AdminDetalleSolicitudScreen extends StatelessWidget {
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
-                  onPressed: () => _cambiarEstado(context, 'aprobado'),
+                  onPressed: _procesando
+                      ? null
+                      : () => _cambiarEstado(context, 'aprobado'),
                   icon: const Icon(Icons.person_outline),
                   label: const Text('Reactivar cuenta',
                       style:
