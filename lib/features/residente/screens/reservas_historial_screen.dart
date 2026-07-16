@@ -58,27 +58,32 @@ class _ReservasHistorialScreenState extends State<ReservasHistorialScreen>
     }
   }
 
+  String _sinAcentos(String s) => s
+      .toLowerCase()
+      .replaceAll(RegExp('[áàäâ]'), 'a')
+      .replaceAll(RegExp('[éèëê]'), 'e')
+      .replaceAll(RegExp('[íìïî]'), 'i')
+      .replaceAll(RegExp('[óòöô]'), 'o')
+      .replaceAll(RegExp('[úùüû]'), 'u');
+
   List _filtrar(String tipo) {
     List base;
     if (tipo == 'todos') {
       base = List.from(_reservas);
     } else if (tipo == 'futbol') {
       base = _reservas.where((r) {
-        final nombre = (r['area']?['nombre'] ?? '').toString().toLowerCase();
-        return nombre.contains('futbol') || nombre.contains('fútbol');
+        final n = _sinAcentos((r['area']?['nombre'] ?? '').toString());
+        return n.contains('futbol');
       }).toList();
     } else if (tipo == 'basket') {
       base = _reservas.where((r) {
-        final nombre = (r['area']?['nombre'] ?? '').toString().toLowerCase();
-        return nombre.contains('basket') || nombre.contains('básquet');
+        final n = _sinAcentos((r['area']?['nombre'] ?? '').toString());
+        return n.contains('basket') || n.contains('basquet');
       }).toList();
     } else {
-      // salon / eventos
       base = _reservas.where((r) {
-        final nombre = (r['area']?['nombre'] ?? '').toString().toLowerCase();
-        return nombre.contains('evento') ||
-            nombre.contains('salón') ||
-            nombre.contains('salon');
+        final n = _sinAcentos((r['area']?['nombre'] ?? '').toString());
+        return n.contains('evento') || n.contains('salon');
       }).toList();
     }
 
@@ -219,7 +224,7 @@ class _ReservasHistorialScreenState extends State<ReservasHistorialScreen>
                     children: [
                       _buildLista(_filtrar('todos')),
                       _buildLista(_filtrar('futbol')),
-                      _buildLista(_filtrar('básquet')),
+                      _buildLista(_filtrar('basket')),
                       _buildLista(_filtrar('salon')),
                     ],
                   ),

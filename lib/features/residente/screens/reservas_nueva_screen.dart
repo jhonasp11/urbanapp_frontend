@@ -106,80 +106,83 @@ class _ReservasNuevaScreenState extends State<ReservasNuevaScreen> {
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       builder: (ctx) {
-        return SizedBox(
-          height: 300,
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 40,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.border,
-                  borderRadius: BorderRadius.circular(2),
-                ),
-              ),
-              const SizedBox(height: 12),
-              const Text('Selecciona la hora de inicio',
-                  style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: AppColors.textPrimary)),
-              const SizedBox(height: 4),
-              Text(
-                'Franja: ${_horaAperturaMin.toString().padLeft(2, '0')}:00 - ${_horaCierreMax.toString().padLeft(2, '0')}:00',
-                style: const TextStyle(
-                    fontSize: 12, color: AppColors.textSecondary),
-              ),
-              Expanded(
-                child: CupertinoPicker(
-                  scrollController:
-                      FixedExtentScrollController(initialItem: indiceInicial),
-                  itemExtent: 44,
-                  onSelectedItemChanged: (i) {
-                    seleccionTemp = horasDisponibles[i];
-                  },
-                  children: horasDisponibles.map((h) {
-                    final fin = h + _duracion;
-                    return Center(
-                      child: Text(
-                        '${h.toString().padLeft(2, '0')}:00  →  ${fin.toString().padLeft(2, '0')}:00',
-                        style: const TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.textPrimary),
-                      ),
-                    );
-                  }).toList(),
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.all(16),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      setState(() {
-                        _horaInicio =
-                            '${seleccionTemp.toString().padLeft(2, '0')}:00';
-                      });
-                      Navigator.pop(ctx);
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: AppColors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
-                    child: const Text('Confirmar',
-                        style: TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.w600)),
+        return SafeArea(
+          top: false,
+          child: SizedBox(
+            height: 300,
+            child: Column(
+              children: [
+                const SizedBox(height: 12),
+                Container(
+                  width: 40,
+                  height: 4,
+                  decoration: BoxDecoration(
+                    color: AppColors.border,
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-              ),
-            ],
+                const SizedBox(height: 12),
+                const Text('Selecciona la hora de inicio',
+                    style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.textPrimary)),
+                const SizedBox(height: 4),
+                Text(
+                  'Franja: ${_horaAperturaMin.toString().padLeft(2, '0')}:00 - ${_horaCierreMax.toString().padLeft(2, '0')}:00',
+                  style: const TextStyle(
+                      fontSize: 12, color: AppColors.textSecondary),
+                ),
+                Expanded(
+                  child: CupertinoPicker(
+                    scrollController:
+                        FixedExtentScrollController(initialItem: indiceInicial),
+                    itemExtent: 44,
+                    onSelectedItemChanged: (i) {
+                      seleccionTemp = horasDisponibles[i];
+                    },
+                    children: horasDisponibles.map((h) {
+                      final fin = h + _duracion;
+                      return Center(
+                        child: Text(
+                          '${h.toString().padLeft(2, '0')}:00  →  ${fin.toString().padLeft(2, '0')}:00',
+                          style: const TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.textPrimary),
+                        ),
+                      );
+                    }).toList(),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: () {
+                        setState(() {
+                          _horaInicio =
+                              '${seleccionTemp.toString().padLeft(2, '0')}:00';
+                        });
+                        Navigator.pop(ctx);
+                      },
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: AppColors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      child: const Text('Confirmar',
+                          style: TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w600)),
+                    ),
+                  ),
+                ),
+              ],
+            ),
           ),
         );
       },
