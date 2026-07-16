@@ -103,14 +103,133 @@ class _AdminDetalleSolicitudScreenState
     }
   }
 
+  // Pide justificación cuando el residente no consta en el padrón
+  Future<String?> _pedirMotivoExcepcion(BuildContext context) async {
+    final motivoCtrl = TextEditingController();
+    return showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        contentPadding: const EdgeInsets.fromLTRB(24, 20, 24, 24),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Container(
+                width: 56,
+                height: 56,
+                decoration: BoxDecoration(
+                  color: Colors.orange.withValues(alpha: 0.1),
+                  shape: BoxShape.circle,
+                ),
+                child: const Icon(Icons.gpp_maybe_outlined,
+                    color: Colors.orange, size: 28),
+              ),
+              const SizedBox(height: 16),
+              const Text('Aprobar fuera del padrón',
+                  textAlign: TextAlign.center,
+                  style: TextStyle(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textPrimary)),
+              const SizedBox(height: 8),
+              const Text(
+                  'Este residente no consta en el padrón de la urbanización. Indica el motivo por el que apruebas su cuenta.',
+                  textAlign: TextAlign.center,
+                  style:
+                      TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+              const SizedBox(height: 16),
+              TextField(
+                controller: motivoCtrl,
+                maxLines: 4,
+                decoration: InputDecoration(
+                  hintText:
+                      'Ej. Documento de propiedad verificado presencialmente...',
+                  hintStyle: const TextStyle(
+                      color: AppColors.textSecondary, fontSize: 13),
+                  border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.border)),
+                  enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.border)),
+                  focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(10),
+                      borderSide: const BorderSide(color: AppColors.primary)),
+                  contentPadding: const EdgeInsets.all(12),
+                ),
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  onPressed: () {
+                    final texto = motivoCtrl.text.trim();
+                    if (texto.isEmpty) {
+                      ScaffoldMessenger.of(ctx).showSnackBar(
+                        const SnackBar(
+                          content: Text('Debes indicar un motivo'),
+                          backgroundColor: AppColors.error,
+                          behavior: SnackBarBehavior.floating,
+                        ),
+                      );
+                      return;
+                    }
+                    Navigator.pop(ctx, texto);
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppColors.primary,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    elevation: 0,
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text('Aprobar de todos modos',
+                      style: TextStyle(fontWeight: FontWeight.w600)),
+                ),
+              ),
+              const SizedBox(height: 8),
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton(
+                  onPressed: () => Navigator.pop(ctx, null),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.border),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                  ),
+                  child: const Text('Cancelar',
+                      style: TextStyle(color: AppColors.textSecondary)),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   Future<void> _aprobar(BuildContext context) async {
     if (_procesando) return;
+
+    // Si no consta en el padrón, exigir justificación antes de continuar
+    String? motivo;
+    if (_padronVerificado == false) {
+      motivo = await _pedirMotivoExcepcion(context);
+      if (motivo == null) return; // canceló
+    }
+
     setState(() => _procesando = true);
     final api = ApiService();
     final adminId = await _obtenerAdminId();
     try {
-      await api.patch('/usuarios/${widget.usuario['id']}/estado',
-          data: {'estado': 'aprobado', 'administrador_id': adminId});
+      await api.patch('/usuarios/${widget.usuario['id']}/estado', data: {
+        'estado': 'aprobado',
+        'administrador_id': adminId,
+        if (motivo != null) 'motivo': motivo,
+      });
       try {
         await api.post('/notificaciones', data: {
           'usuario_id': widget.usuario['id'],

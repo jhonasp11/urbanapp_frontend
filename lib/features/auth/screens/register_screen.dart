@@ -754,7 +754,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
           ],
           CustomTextField(
             label: 'Usuario',
-            hint: 'Ej. Carlos_3 (6-12, 1 mayúscula y 1 número)',
+            hint: '6-12 caracteres, 1 mayúscula y 1 número',
             prefixIcon: Icons.person_outline,
             controller: _usuarioCtrl,
             inputFormatters: [UsuarioFormatter()],
