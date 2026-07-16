@@ -49,12 +49,8 @@ class _LoginScreenState extends State<LoginScreen> {
         return;
       }
 
-      // Inicializar notificaciones (sin bloquear el login si no hay conexión)
-      try {
-        await NotificationService()
-            .initialize()
-            .timeout(const Duration(seconds: 5));
-      } catch (_) {}
+      // Inicializar notificaciones sin bloquear el login (no se espera el resultado)
+      NotificationService().initialize().catchError((_) {});
 
       if (!mounted) return;
       switch (rol) {
