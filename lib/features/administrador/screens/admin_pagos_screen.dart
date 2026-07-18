@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
 import 'admin_pago_detalle_screen.dart';
+import 'admin_pagos_validados_screen.dart';
 
 class AdminPagosScreen extends StatefulWidget {
   const AdminPagosScreen({super.key});
@@ -107,6 +108,28 @@ class _AdminPagosScreenState extends State<AdminPagosScreen> {
                             ],
                           ),
                         ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AdminPagosValidadosScreen(),
+                        ),
+                      ),
+                      icon: const Icon(Icons.history_rounded,
+                          size: 18, color: AppColors.primary),
+                      label: const Text('Ver Pagos Validados',
+                          style: TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600)),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 48),
+                        side: const BorderSide(color: AppColors.primary),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),

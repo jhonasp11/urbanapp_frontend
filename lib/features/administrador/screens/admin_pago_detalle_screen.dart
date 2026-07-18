@@ -463,6 +463,28 @@ class _AdminDetallePagoScreenState extends State<AdminDetallePagoScreen> {
     }
   }
 
+  Color _colorEstadoPago(String estado) {
+    switch (estado) {
+      case 'aprobado':
+        return AppColors.success;
+      case 'rechazado':
+        return AppColors.error;
+      default:
+        return Colors.orange;
+    }
+  }
+
+  String _labelEstadoPago(String estado) {
+    switch (estado) {
+      case 'aprobado':
+        return 'APROBADO';
+      case 'rechazado':
+        return 'RECHAZADO';
+      default:
+        return 'PENDIENTE';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final residente = widget.pago['residente'] ?? {};
@@ -479,6 +501,8 @@ class _AdminDetallePagoScreenState extends State<AdminDetallePagoScreen> {
     final banco = widget.pago['banco'] ?? '';
     final tipo = widget.pago['tipo_pago'] ?? 'alicuota';
     final esReserva = tipo == 'reserva';
+    final estado = (widget.pago['estado'] ?? 'pendiente').toString();
+    final esPendiente = estado == 'pendiente';
 
     // Para alícuota: construir el/los mes(es) que paga
     final mesesPagados = _mesesDePago();
@@ -564,14 +588,14 @@ class _AdminDetallePagoScreenState extends State<AdminDetallePagoScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.1),
+                      color: _colorEstadoPago(estado).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text('PENDIENTE',
+                    child: Text(_labelEstadoPago(estado),
                         style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
-                            color: Colors.orange)),
+                            color: _colorEstadoPago(estado))),
                   ),
                 ],
               ),
@@ -636,54 +660,63 @@ class _AdminDetallePagoScreenState extends State<AdminDetallePagoScreen> {
               ),
             ),
             const SizedBox(height: 12),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _procesando ? null : () => _aprobar(context),
-                    icon: _procesando
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.check_circle_outline),
-                    label: const Text('Aprobar Pago',
-                        style: TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.w600)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+            if (!esPendiente &&
+                (widget.pago['observacion_admin'] ?? '')
+                    .toString()
+                    .isNotEmpty) ...[
+              _buildCampo('OBSERVACIÓN DEL ADMIN',
+                  widget.pago['observacion_admin'].toString()),
+              const SizedBox(height: 4),
+            ],
+            if (esPendiente)
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _procesando ? null : () => _aprobar(context),
+                      icon: _procesando
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.check_circle_outline),
+                      label: const Text('Aprobar Pago',
+                          style: TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w600)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _procesando
-                        ? null
-                        : () => _mostrarModalRechazo(context),
-                    icon: const Icon(Icons.cancel_outlined,
-                        color: AppColors.error),
-                    label: const Text('Rechazar',
-                        style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.error)),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.error),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _procesando
+                          ? null
+                          : () => _mostrarModalRechazo(context),
+                      icon: const Icon(Icons.cancel_outlined,
+                          color: AppColors.error),
+                      label: const Text('Rechazar',
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.error)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.error),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
           ],
         ),
       ),

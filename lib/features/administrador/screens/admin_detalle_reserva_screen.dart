@@ -311,6 +311,31 @@ class _AdminDetalleReservaScreenState extends State<AdminDetalleReservaScreen> {
     );
   }
 
+  Color _colorEstadoReserva(String estado) {
+    switch (estado) {
+      case 'confirmada':
+      case 'completada':
+        return AppColors.success;
+      case 'denegada':
+        return AppColors.error;
+      default:
+        return Colors.orange;
+    }
+  }
+
+  String _labelEstadoReserva(String estado) {
+    switch (estado) {
+      case 'confirmada':
+        return 'APROBADA';
+      case 'completada':
+        return 'COMPLETADA';
+      case 'denegada':
+        return 'RECHAZADA';
+      default:
+        return 'PENDIENTE';
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final residente = widget.reserva['residente'] ?? {};
@@ -325,6 +350,8 @@ class _AdminDetalleReservaScreenState extends State<AdminDetalleReservaScreen> {
     final fecha = _formatFecha(widget.reserva['fecha_reserva']);
     final horaInicio = _formatHora(widget.reserva['hora_inicio']);
     final horaFin = _formatHora(widget.reserva['hora_fin']);
+    final estado = (widget.reserva['estado'] ?? 'pendiente').toString();
+    final esPendiente = estado == 'pendiente';
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -397,14 +424,14 @@ class _AdminDetalleReservaScreenState extends State<AdminDetalleReservaScreen> {
                     padding:
                         const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
                     decoration: BoxDecoration(
-                      color: Colors.orange.withValues(alpha: 0.1),
+                      color: _colorEstadoReserva(estado).withValues(alpha: 0.1),
                       borderRadius: BorderRadius.circular(8),
                     ),
-                    child: const Text('PENDIENTE',
+                    child: Text(_labelEstadoReserva(estado),
                         style: TextStyle(
                             fontSize: 10,
                             fontWeight: FontWeight.w700,
-                            color: Colors.orange)),
+                            color: _colorEstadoReserva(estado))),
                   ),
                 ],
               ),
@@ -431,53 +458,62 @@ class _AdminDetalleReservaScreenState extends State<AdminDetalleReservaScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: _procesando ? null : () => _confirmar(context),
-                    icon: _procesando
-                        ? const SizedBox(
-                            width: 18,
-                            height: 18,
-                            child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Colors.white))
-                        : const Icon(Icons.check_circle_outline),
-                    label: const Text('Confirmar',
-                        style: TextStyle(
-                            fontSize: 15, fontWeight: FontWeight.w600)),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.primary,
-                      foregroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+            const SizedBox(height: 16),
+            if (!esPendiente &&
+                (widget.reserva['observacion_admin'] ?? '')
+                    .toString()
+                    .isNotEmpty) ...[
+              _buildCampo('OBSERVACIÓN DEL ADMIN',
+                  widget.reserva['observacion_admin'].toString()),
+              const SizedBox(height: 8),
+            ],
+            if (esPendiente)
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: _procesando ? null : () => _confirmar(context),
+                      icon: _procesando
+                          ? const SizedBox(
+                              width: 18,
+                              height: 18,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2, color: Colors.white))
+                          : const Icon(Icons.check_circle_outline),
+                      label: const Text('Confirmar',
+                          style: TextStyle(
+                              fontSize: 15, fontWeight: FontWeight.w600)),
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppColors.primary,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        elevation: 0,
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: _procesando ? null : () => _denegar(context),
-                    icon: const Icon(Icons.cancel_outlined,
-                        color: AppColors.error),
-                    label: const Text('Denegar',
-                        style: TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: AppColors.error)),
-                    style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.error),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(10)),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      onPressed: _procesando ? null : () => _denegar(context),
+                      icon: const Icon(Icons.cancel_outlined,
+                          color: AppColors.error),
+                      label: const Text('Denegar',
+                          style: TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: AppColors.error)),
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: AppColors.error),
+                        shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(10)),
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
                     ),
                   ),
-                ),
-              ],
-            ),
+                ],
+              ),
           ],
         ),
       ),

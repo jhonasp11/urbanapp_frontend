@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/services/api_service.dart';
 import 'admin_detalle_reserva_screen.dart';
+import 'admin_reservas_validadas_screen.dart';
 
 class AdminGestionReservasScreen extends StatefulWidget {
   const AdminGestionReservasScreen({super.key});
@@ -130,6 +131,28 @@ class _AdminGestionReservasScreenState
                             ],
                           ),
                         ],
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    OutlinedButton.icon(
+                      onPressed: () => Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (_) => const AdminReservasValidadasScreen(),
+                        ),
+                      ),
+                      icon: const Icon(Icons.history_rounded,
+                          size: 18, color: AppColors.primary),
+                      label: const Text('Ver Reservas Validadas',
+                          style: TextStyle(
+                              color: AppColors.primary,
+                              fontWeight: FontWeight.w600)),
+                      style: OutlinedButton.styleFrom(
+                        minimumSize: const Size(double.infinity, 48),
+                        side: const BorderSide(color: AppColors.primary),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
                       ),
                     ),
                     const SizedBox(height: 20),
