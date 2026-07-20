@@ -13,7 +13,7 @@ class PagosHistorialScreen extends StatefulWidget {
 }
 
 class _PagosHistorialScreenState extends State<PagosHistorialScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   late TabController _tabController;
   final _api = ApiService();
   List _pagos = [];
@@ -22,12 +22,22 @@ class _PagosHistorialScreenState extends State<PagosHistorialScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 4, vsync: this);
     _cargar();
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    // Nivel 2: recargar cuando la app vuelve a primer plano
+    if (state == AppLifecycleState.resumed) {
+      _cargar();
+    }
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabController.dispose();
     super.dispose();
   }

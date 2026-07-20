@@ -12,16 +12,27 @@ class AdminGestionUsuariosScreen extends StatefulWidget {
       _AdminGestionUsuariosScreenState();
 }
 
-class _AdminGestionUsuariosScreenState
-    extends State<AdminGestionUsuariosScreen> {
+class _AdminGestionUsuariosScreenState extends State<AdminGestionUsuariosScreen>
+    with WidgetsBindingObserver {
   final _api = ApiService();
   List _pendientes = [];
   bool _loading = true;
-
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _cargar();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _cargar();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _cargar() async {

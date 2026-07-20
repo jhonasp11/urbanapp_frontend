@@ -34,6 +34,8 @@ class _AccesoScreenState extends State<AccesoScreen> {
   List _visitantes = [];
   Map<String, dynamic>? _visitanteSeleccionado;
   bool _guardarVisitante = false;
+  bool _guardando = false;
+  String? _visitanteGuardadoId; // id del visitante ya guardado en este flujo
 
   DateTime? _fechaInicio;
   TimeOfDay? _horaInicio;
@@ -130,11 +132,14 @@ class _AccesoScreenState extends State<AccesoScreen> {
   }
 
   Future<void> _seleccionarFecha(bool esInicio) async {
+    final ahora = DateTime.now();
+    // Último día del mes actual: día 0 del mes siguiente
+    final finDeMes = DateTime(ahora.year, ahora.month + 1, 0);
     final fecha = await showDatePicker(
       context: context,
-      initialDate: DateTime.now(),
-      firstDate: DateTime.now(),
-      lastDate: DateTime.now().add(const Duration(days: 30)),
+      initialDate: ahora,
+      firstDate: ahora,
+      lastDate: finDeMes,
     );
     if (fecha != null) {
       setState(() {
@@ -186,6 +191,87 @@ class _AccesoScreenState extends State<AccesoScreen> {
     _horaInicio = null;
     _fechaFin = null;
     _horaFin = null;
+  }
+
+  Future<void> _onToggleGuardar(bool marcado) async {
+    // Si se desmarca, solo limpiar el estado
+    if (!marcado) {
+      setState(() {
+        _guardarVisitante = false;
+        _visitanteGuardadoId = null;
+      });
+      return;
+    }
+
+    // Validar que cédula y nombre estén completos antes de guardar
+    final cedula = _cedulaCtrl.text.trim();
+    final nombre = _nombreCtrl.text.trim();
+    if (cedula.isEmpty || nombre.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Completa la cédula y el nombre antes de guardar'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
+    if (_guardando) return; // bloqueo anti doble-petición
+    setState(() => _guardando = true);
+    try {
+      final fechaBaseStr = _fechaInicio != null
+          ? '${_fechaInicio!.year}-${_pad(_fechaInicio!.month)}-${_pad(_fechaInicio!.day)}T00:00:00'
+          : '${DateTime.now().year}-${_pad(DateTime.now().month)}-${_pad(DateTime.now().day)}T00:00:00';
+      final horaBaseStr = _horaInicio != null
+          ? '${_pad(_horaInicio!.hour)}:${_pad(_horaInicio!.minute)}'
+          : '00:00';
+
+      final res = await _api.post(ApiConstants.guardarVisitante, data: {
+        'residente_id': _userId,
+        'nombre_visitante': nombre,
+        'cedula_visitante': cedula,
+        'fecha_visita': fechaBaseStr,
+        'hora_estimada_ingreso': horaBaseStr,
+      });
+
+      if (!mounted) return;
+      setState(() {
+        _guardarVisitante = true;
+        _visitanteGuardadoId = res.data['id']?.toString();
+      });
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Visitante guardado correctamente'),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        // Falló (ej. ya guardado): dejar el checkbox desmarcado
+        setState(() {
+          _guardarVisitante = false;
+          _visitanteGuardadoId = null;
+        });
+        String mensaje = 'No se pudo guardar el visitante';
+        if (e is DioException && e.response?.data != null) {
+          final data = e.response!.data;
+          if (data is Map && data['message'] != null) {
+            mensaje = data['message'].toString();
+          }
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(mensaje),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _guardando = false);
+    }
   }
 
   Future<void> _generarQr({
@@ -262,21 +348,27 @@ class _AccesoScreenState extends State<AccesoScreen> {
           '${fechaFinCompleta.year}-${_pad(fechaFinCompleta.month)}-${_pad(fechaFinCompleta.day)}T${_pad(fechaFinCompleta.hour)}:${_pad(fechaFinCompleta.minute)}:00';
       String idVisitante = visitanteId;
 
-      // Si es nuevo visitante, crearlo primero
+      // Si es nuevo visitante
       if (visitanteId.isEmpty) {
-        final fechaBaseStr =
-            '${_fechaInicio!.year}-${_pad(_fechaInicio!.month)}-${_pad(_fechaInicio!.day)}T00:00:00';
+        // Si ya se guardó al marcar el checkbox, reutilizar ese id
+        if (_visitanteGuardadoId != null) {
+          idVisitante = _visitanteGuardadoId!;
+        } else {
+          // No guardado: crear visitante temporal solo para el QR
+          final fechaBaseStr =
+              '${_fechaInicio!.year}-${_pad(_fechaInicio!.month)}-${_pad(_fechaInicio!.day)}T00:00:00';
 
-        final resVisitante = await _api.post(ApiConstants.visitantes, data: {
-          'residente_id': _userId,
-          'nombre_visitante': nombre,
-          'cedula_visitante': cedula,
-          'fecha_visita': fechaBaseStr,
-          'hora_estimada_ingreso':
-              '${_pad(_horaInicio!.hour)}:${_pad(_horaInicio!.minute)}',
-          'guardado': _guardarVisitante,
-        });
-        idVisitante = resVisitante.data['id'];
+          final resVisitante = await _api.post(ApiConstants.visitantes, data: {
+            'residente_id': _userId,
+            'nombre_visitante': nombre,
+            'cedula_visitante': cedula,
+            'fecha_visita': fechaBaseStr,
+            'hora_estimada_ingreso':
+                '${_pad(_horaInicio!.hour)}:${_pad(_horaInicio!.minute)}',
+            'guardado': false,
+          });
+          idVisitante = resVisitante.data['id'];
+        }
       }
 
       final resQr = await _api.post(ApiConstants.generarQr, data: {
@@ -307,6 +399,7 @@ class _AccesoScreenState extends State<AccesoScreen> {
         _resetFechas();
         _visitanteSeleccionado = null;
         _guardarVisitante = false;
+        _visitanteGuardadoId = null;
         _modo = 0;
       });
     } catch (e) {
@@ -810,6 +903,7 @@ class _AccesoScreenState extends State<AccesoScreen> {
                     _cedulaCtrl.clear();
                     _nombreCtrl.clear();
                     _guardarVisitante = false;
+                    _visitanteGuardadoId = null;
                     _resetFechas();
                   }),
                   child: const Icon(Icons.arrow_back_ios_new_rounded,
@@ -879,14 +973,13 @@ class _AccesoScreenState extends State<AccesoScreen> {
             const SizedBox(height: 16),
             // Opción guardar visitante
             GestureDetector(
-              onTap: () =>
-                  setState(() => _guardarVisitante = !_guardarVisitante),
+              onTap: () => _onToggleGuardar(!_guardarVisitante),
               child: Row(
                 children: [
                   Checkbox(
                     value: _guardarVisitante,
-                    onChanged: (v) =>
-                        setState(() => _guardarVisitante = v ?? false),
+                    onChanged:
+                        _guardando ? null : (v) => _onToggleGuardar(v ?? false),
                     activeColor: AppColors.primary,
                     materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                   ),

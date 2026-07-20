@@ -11,15 +11,27 @@ class AdminPagosScreen extends StatefulWidget {
   State<AdminPagosScreen> createState() => _AdminPagosScreenState();
 }
 
-class _AdminPagosScreenState extends State<AdminPagosScreen> {
+class _AdminPagosScreenState extends State<AdminPagosScreen>
+    with WidgetsBindingObserver {
   final _api = ApiService();
   List _pagos = [];
   bool _loading = true;
-
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _cargar();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _cargar();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _cargar() async {

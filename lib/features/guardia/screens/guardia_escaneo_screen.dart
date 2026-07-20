@@ -24,6 +24,7 @@ class _GuardiaEscaneoScreenState extends State<GuardiaEscaneoScreen> {
   final TextEditingController _placaCtrl = TextEditingController();
 
   bool _procesando = false;
+  bool _listoParaLeer = false;
   String _estado = 'escaneando';
   Map<String, dynamic>? _resultadoEscaneo;
   String _guardiaId = '';
@@ -35,6 +36,10 @@ class _GuardiaEscaneoScreenState extends State<GuardiaEscaneoScreen> {
   void initState() {
     super.initState();
     _cargarGuardia();
+    // 3 segundos de gracia para que el guardia encuadre el código
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _listoParaLeer = true);
+    });
   }
 
   @override
@@ -54,7 +59,12 @@ class _GuardiaEscaneoScreenState extends State<GuardiaEscaneoScreen> {
   }
 
   Future<void> _escanear(String codigoHash) async {
-    if (_procesando || codigoHash.isEmpty || _estado != 'escaneando') return;
+    if (!_listoParaLeer ||
+        _procesando ||
+        codigoHash.isEmpty ||
+        _estado != 'escaneando') {
+      return;
+    }
 
     setState(() {
       _procesando = true;
@@ -62,7 +72,7 @@ class _GuardiaEscaneoScreenState extends State<GuardiaEscaneoScreen> {
     });
     _scannerController.stop();
     // Efecto de "detectando/validando código"
-    await Future.delayed(const Duration(milliseconds: 1500));
+    await Future.delayed(const Duration(seconds: 2));
 
     try {
       final res = await _api.post(ApiConstants.validarQr, data: {
@@ -95,9 +105,14 @@ class _GuardiaEscaneoScreenState extends State<GuardiaEscaneoScreen> {
       _estado = 'escaneando';
       _resultadoEscaneo = null;
       _procesando = false;
+      _listoParaLeer = false;
     });
     Future.delayed(const Duration(milliseconds: 800), () {
       if (mounted) _scannerController.start();
+    });
+    // Nueva gracia de 3 segundos tras reintentar
+    Future.delayed(const Duration(seconds: 3), () {
+      if (mounted) setState(() => _listoParaLeer = true);
     });
   }
 

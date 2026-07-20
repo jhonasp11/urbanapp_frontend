@@ -18,7 +18,8 @@ class GuardiaHomeScreen extends StatefulWidget {
   State<GuardiaHomeScreen> createState() => _GuardiaHomeScreenState();
 }
 
-class _GuardiaHomeScreenState extends State<GuardiaHomeScreen> {
+class _GuardiaHomeScreenState extends State<GuardiaHomeScreen>
+    with WidgetsBindingObserver {
   final _storage = const FlutterSecureStorage();
   final _api = ApiService();
 
@@ -34,13 +35,20 @@ class _GuardiaHomeScreenState extends State<GuardiaHomeScreen> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _verificar();
     _timer = Timer.periodic(
         const Duration(seconds: 30), (_) => _verificarSilencioso());
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _verificar();
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _timer?.cancel();
     super.dispose();
   }

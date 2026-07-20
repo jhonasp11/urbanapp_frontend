@@ -35,6 +35,7 @@ class UrbanApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'UrbanApp',
+      navigatorKey: navigatorKey,
       debugShowCheckedModeBanner: false,
       localizationsDelegates: const [
         _EsLocalizationsDelegate(),

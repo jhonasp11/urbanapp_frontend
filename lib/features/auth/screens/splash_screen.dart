@@ -34,8 +34,12 @@ class _SplashScreenState extends State<SplashScreen> {
       return;
     }
 
+    // Inicializar notificaciones con timeout: si tarda o falla (p. ej. sin
+    // conexión), no debe bloquear el arranque de la app.
     try {
-      await NotificationService().initialize();
+      await NotificationService().initialize().timeout(
+            const Duration(seconds: 5),
+          );
     } catch (_) {}
 
     final rol = await _storage.read(key: 'rol');

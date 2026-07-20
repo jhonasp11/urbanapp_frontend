@@ -14,7 +14,7 @@ class AccesoHistorialScreen extends StatefulWidget {
 }
 
 class _AccesoHistorialScreenState extends State<AccesoHistorialScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   final _api = ApiService();
   late TabController _tabController;
   List _codigos = [];
@@ -24,12 +24,19 @@ class _AccesoHistorialScreenState extends State<AccesoHistorialScreen>
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 6, vsync: this);
+    WidgetsBinding.instance.addObserver(this);
+    _tabController = TabController(length: 5, vsync: this);
     _cargar();
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _cargar();
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabController.dispose();
     super.dispose();
   }
@@ -164,7 +171,6 @@ class _AccesoHistorialScreenState extends State<AccesoHistorialScreen>
             Tab(text: 'Usados'),
             Tab(text: 'Expirados'),
             Tab(text: 'Anulados'),
-            Tab(text: 'Bloqueados'),
           ],
         ),
       ),
@@ -178,7 +184,6 @@ class _AccesoHistorialScreenState extends State<AccesoHistorialScreen>
                 _buildLista(_filtrar('usado')),
                 _buildLista(_filtrar('expirado')),
                 _buildLista(_filtrar('anulado')),
-                _buildLista(_filtrar('bloqueado')),
               ],
             ),
     );

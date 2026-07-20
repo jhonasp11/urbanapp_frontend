@@ -474,6 +474,7 @@ class _AdminGestionAlicuotasScreenState
     final creadas = _resultado?['creadas'] ?? 0;
     final omitidas = _resultado?['omitidas'] ?? 0;
     final errores = (_resultado?['errores'] as List?) ?? [];
+    final creadosNombres = (_resultado?['creados_nombres'] as List?) ?? [];
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -550,7 +551,7 @@ class _AdminGestionAlicuotasScreenState
                   ],
                 ),
               ),
-              if (omitidas > 0 || errores.isNotEmpty) ...[
+              if (creadas > 0 || omitidas > 0 || errores.isNotEmpty) ...[
                 const SizedBox(height: 12),
                 SizedBox(
                   width: double.infinity,
@@ -563,6 +564,7 @@ class _AdminGestionAlicuotasScreenState
                             creadas: creadas,
                             omitidas: omitidas,
                             errores: errores,
+                            creadosNombres: creadosNombres,
                             periodo:
                                 '${_meses[_mesSeleccionado - 1]} $_anioSeleccionado',
                           ),

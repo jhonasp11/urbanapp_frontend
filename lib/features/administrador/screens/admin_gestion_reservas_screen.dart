@@ -12,16 +12,27 @@ class AdminGestionReservasScreen extends StatefulWidget {
       _AdminGestionReservasScreenState();
 }
 
-class _AdminGestionReservasScreenState
-    extends State<AdminGestionReservasScreen> {
+class _AdminGestionReservasScreenState extends State<AdminGestionReservasScreen>
+    with WidgetsBindingObserver {
   final _api = ApiService();
   List _reservas = [];
   bool _loading = true;
-
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _cargar();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _cargar();
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
   }
 
   Future<void> _cargar() async {

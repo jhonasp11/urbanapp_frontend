@@ -150,8 +150,7 @@ class _AdminReportesScreenState extends State<AdminReportesScreen> {
                             .map((m) => DropdownMenuItem<String>(
                                   value: m['key'],
                                   child: Text(m['titulo'],
-                                      style: const TextStyle(fontSize: 12),
-                                      overflow: TextOverflow.ellipsis),
+                                      style: const TextStyle(fontSize: 12)),
                                 ))
                             .toList(),
                         onChanged: (val) {

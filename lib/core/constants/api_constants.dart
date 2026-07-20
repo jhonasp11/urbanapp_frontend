@@ -1,6 +1,5 @@
 class ApiConstants {
-  static const String baseUrl =
-      'https://urbanapp-backend-production.up.railway.app/api';
+  static const String baseUrl = 'http://10.0.2.2:3000/api';
   static const String login = '/auth/login';
   static const String registro = '/usuarios/registro';
   static const String residentes = '/usuarios/residentes';
@@ -8,6 +7,7 @@ class ApiConstants {
   static const String alicuotas = '/alicuotas';
   static const String pagos = '/pagos';
   static const String visitantes = '/visitantes';
+  static const String guardarVisitante = '/visitantes/guardar';
   static const String generarQr = '/codigos-qr/generar';
   static const String validarQr = '/codigos-qr/validar';
   static const String confirmarIngreso = '/codigos-qr/confirmar-ingreso';

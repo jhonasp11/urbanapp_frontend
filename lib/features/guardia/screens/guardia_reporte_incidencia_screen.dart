@@ -50,6 +50,16 @@ class _GuardiaReporteIncidenciaScreenState
       );
       return;
     }
+    if (_observacionesCtrl.text.trim().length < 20) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('El reporte debe tener al menos 20 caracteres'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
 
     setState(() => _isLoading = true);
 

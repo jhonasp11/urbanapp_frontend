@@ -14,7 +14,7 @@ class ReservasHistorialScreen extends StatefulWidget {
 }
 
 class _ReservasHistorialScreenState extends State<ReservasHistorialScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   final _api = ApiService();
   late TabController _tabController;
   List _reservas = [];
@@ -34,12 +34,19 @@ class _ReservasHistorialScreenState extends State<ReservasHistorialScreen>
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 4, vsync: this);
     _cargar();
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _cargar();
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabController.dispose();
     super.dispose();
   }

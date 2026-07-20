@@ -5,6 +5,7 @@ class AdminAlicuotasDetalleScreen extends StatelessWidget {
   final int creadas;
   final int omitidas;
   final List errores;
+  final List creadosNombres;
   final String periodo;
 
   const AdminAlicuotasDetalleScreen({
@@ -12,6 +13,7 @@ class AdminAlicuotasDetalleScreen extends StatelessWidget {
     required this.creadas,
     required this.omitidas,
     required this.errores,
+    required this.creadosNombres,
     required this.periodo,
   });
 
@@ -70,6 +72,62 @@ class AdminAlicuotasDetalleScreen extends StatelessWidget {
               ],
             ),
             const SizedBox(height: 24),
+
+            // Lista de creados
+            if (creadosNombres.isNotEmpty) ...[
+              const Text('RESIDENTES CON ALÍCUOTA CREADA',
+                  style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.success,
+                      letterSpacing: 0.5)),
+              const SizedBox(height: 4),
+              const Text(
+                'Se les generó la alícuota para este período.',
+                style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              ),
+              const SizedBox(height: 12),
+              ListView.builder(
+                shrinkWrap: true,
+                physics: const NeverScrollableScrollPhysics(),
+                itemCount: creadosNombres.length,
+                itemBuilder: (context, i) => Container(
+                  margin: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: AppColors.white,
+                    borderRadius: BorderRadius.circular(10),
+                    border: Border.all(
+                        color: AppColors.success.withValues(alpha: 0.2)),
+                  ),
+                  child: Row(
+                    children: [
+                      Container(
+                        width: 28,
+                        height: 28,
+                        decoration: BoxDecoration(
+                          color: AppColors.success.withValues(alpha: 0.1),
+                          shape: BoxShape.circle,
+                        ),
+                        alignment: Alignment.center,
+                        child: Text('${i + 1}',
+                            style: const TextStyle(
+                                fontSize: 12,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.success)),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: Text('${creadosNombres[i]}',
+                            style: const TextStyle(
+                                fontSize: 13, color: AppColors.textPrimary)),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+            ],
 
             // Lista de omitidos
             if (errores.isEmpty)

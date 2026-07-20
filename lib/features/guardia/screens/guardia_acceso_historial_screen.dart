@@ -17,7 +17,7 @@ class GuardiaAccesoHistorialScreen extends StatefulWidget {
 
 class GuardiaAccesoHistorialScreenState
     extends State<GuardiaAccesoHistorialScreen>
-    with SingleTickerProviderStateMixin {
+    with SingleTickerProviderStateMixin, WidgetsBindingObserver {
   final _storage = const FlutterSecureStorage();
   final _api = ApiService();
   late TabController _tabController;
@@ -56,6 +56,7 @@ class GuardiaAccesoHistorialScreenState
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     _tabController = TabController(length: 4, vsync: this);
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) {
@@ -73,7 +74,13 @@ class GuardiaAccesoHistorialScreenState
   }
 
   @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed) _cargar();
+  }
+
+  @override
   void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
     _tabController.dispose();
     super.dispose();
   }

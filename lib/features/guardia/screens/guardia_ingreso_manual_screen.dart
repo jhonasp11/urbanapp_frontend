@@ -61,6 +61,29 @@ class _GuardiaIngresoManualScreenState
       return;
     }
 
+    if (_nombreVisitanteCtrl.text.trim().length < 8) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('El nombre del visitante debe tener al menos 8 caracteres'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+    if (_nombreResidenteCtrl.text.trim().length < 8) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content:
+              Text('El nombre del residente debe tener al menos 8 caracteres'),
+          backgroundColor: AppColors.error,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+      return;
+    }
+
     // Validación cédula ecuatoriana
     final cedula = _cedulaVisitanteCtrl.text.trim();
     if (cedula.length != 10 || !RegExp(r'^\d{10}$').hasMatch(cedula)) {
