@@ -21,7 +21,6 @@ class _LoginScreenState extends State<LoginScreen> {
   final _authService = AuthService();
 
   bool _obscurePassword = true;
-  bool _recordarme = false;
   bool _isLoading = false;
 
   @override
@@ -173,42 +172,25 @@ class _LoginScreenState extends State<LoginScreen> {
                         ),
                         const SizedBox(height: 12),
 
-                        // Recordarme + Olvidaste
-                        Row(
-                          children: [
-                            Checkbox(
-                              value: _recordarme,
-                              onChanged: (v) =>
-                                  setState(() => _recordarme = v ?? false),
-                              activeColor: AppColors.primary,
-                              materialTapTargetSize:
-                                  MaterialTapTargetSize.shrinkWrap,
+                        // Olvidaste tu contraseña
+                        Align(
+                          alignment: Alignment.centerRight,
+                          child: GestureDetector(
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => const RecoverPasswordScreen(),
+                              ),
                             ),
-                            const Text(
-                              'Recordarme',
+                            child: const Text(
+                              '¿Olvidaste tu contraseña?',
                               style: TextStyle(
                                 fontSize: 13,
-                                color: AppColors.textSecondary,
+                                color: AppColors.primary,
+                                fontWeight: FontWeight.w500,
                               ),
                             ),
-                            const Spacer(),
-                            GestureDetector(
-                              onTap: () => Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) => const RecoverPasswordScreen(),
-                                ),
-                              ),
-                              child: const Text(
-                                '¿Olvidaste tu contraseña?',
-                                style: TextStyle(
-                                  fontSize: 13,
-                                  color: AppColors.primary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                            ),
-                          ],
+                          ),
                         ),
                         const SizedBox(height: 20),
 

@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import '../../../core/services/api_service.dart';
 import '../../../core/constants/api_constants.dart';
@@ -53,7 +54,15 @@ class AuthService {
   }
 
   Future<void> logout() async {
-    await _storage.deleteAll();
+    try {
+      // Limpiar los datos de sesión del almacenamiento seguro
+      // (token JWT, rol e identificadores del usuario)
+      await _storage.deleteAll();
+    } catch (e) {
+      // Si el almacenamiento seguro falla al borrar, se registra el error
+      // pero no se interrumpe el cierre de sesión: la app continúa al login.
+      debugPrint('Error al cerrar sesión: $e');
+    }
   }
 
   Future<String?> getToken() => _storage.read(key: 'token');

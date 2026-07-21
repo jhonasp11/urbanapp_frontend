@@ -24,11 +24,21 @@ class _SplashScreenState extends State<SplashScreen> {
     // pequeña espera para mostrar el splash
     await Future.delayed(const Duration(milliseconds: 400));
 
-    final token = await _storage.read(key: 'token');
+    // Leer el token de forma segura: en algunos dispositivos el almacenamiento
+    // seguro (Keystore) puede fallar o colgarse; si eso pasa, vamos al login.
+    String? token;
+    try {
+      token =
+          await _storage.read(key: 'token').timeout(const Duration(seconds: 5));
+    } catch (_) {
+      token = null;
+    }
 
     // Sin token o expirado -> limpiar y mandar al login
     if (token == null || token.isEmpty || JwtDecoder.isExpired(token)) {
-      await _storage.deleteAll();
+      try {
+        await _storage.deleteAll().timeout(const Duration(seconds: 5));
+      } catch (_) {}
       if (!mounted) return;
       Navigator.pushReplacementNamed(context, '/login');
       return;
@@ -42,7 +52,12 @@ class _SplashScreenState extends State<SplashScreen> {
           );
     } catch (_) {}
 
-    final rol = await _storage.read(key: 'rol');
+    String? rol;
+    try {
+      rol = await _storage.read(key: 'rol').timeout(const Duration(seconds: 5));
+    } catch (_) {
+      rol = null;
+    }
     if (!mounted) return;
 
     switch (rol) {
