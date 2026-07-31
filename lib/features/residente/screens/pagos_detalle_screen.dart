@@ -4,7 +4,8 @@ import '../../../core/constants/app_colors.dart';
 
 class PagosDetalleScreen extends StatelessWidget {
   final Map<String, dynamic> pago;
-  const PagosDetalleScreen({super.key, required this.pago});
+  final String? nombreTitular;
+  const PagosDetalleScreen({super.key, required this.pago, this.nombreTitular});
 
   Color _colorEstado(String estado) {
     switch (estado) {
@@ -218,6 +219,10 @@ class PagosDetalleScreen extends StatelessWidget {
                   _buildDivider(),
                   _buildFila('Concepto', _labelConcepto()),
                   _buildDivider(),
+                  if (nombreTitular != null) ...[
+                    _buildFila('Pagado por titular de villa', nombreTitular!),
+                    _buildDivider(),
+                  ],
                   _buildFila('Método de pago',
                       metodo.isNotEmpty ? metodo : 'No especificado'),
                   _buildDivider(),

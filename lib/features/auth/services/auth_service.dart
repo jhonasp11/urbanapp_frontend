@@ -43,6 +43,8 @@ class AuthService {
             if (residenteId != null) {
               await _storage.write(
                   key: 'residente_id', value: residenteId.toString());
+              final esTitular = resUser.data?['residente']?['titular'] == true;
+              await _storage.write(key: 'titular', value: esTitular.toString());
             }
           } catch (_) {}
         }

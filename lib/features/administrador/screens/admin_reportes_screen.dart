@@ -37,6 +37,13 @@ class _AdminReportesScreenState extends State<AdminReportesScreen> {
     'Diciembre'
   ];
 
+  // Solo los meses hasta el mes actual (reportes usan el año en curso).
+  // No se muestran meses futuros porque no habría datos.
+  List<String> get _mesesDisponibles {
+    final mesActual = DateTime.now().month;
+    return _meses.sublist(0, mesActual);
+  }
+
   final List<Map<String, dynamic>> _modulos = [
     {
       'key': 'pagos',
@@ -183,7 +190,7 @@ class _AdminReportesScreenState extends State<AdminReportesScreen> {
                             style: TextStyle(
                                 fontSize: 13, color: AppColors.textSecondary)),
                         isExpanded: true,
-                        items: _meses
+                        items: _mesesDisponibles
                             .map((m) => DropdownMenuItem<String>(
                                   value: m,
                                   child: Text(m,

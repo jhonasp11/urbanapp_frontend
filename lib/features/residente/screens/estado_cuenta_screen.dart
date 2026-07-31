@@ -44,7 +44,8 @@ class _EstadoCuentaScreenState extends State<EstadoCuentaScreen> {
   void initState() {
     super.initState();
     final anioActual = DateTime.now().year;
-    _anios = [anioActual - 2, anioActual - 1, anioActual, anioActual + 1];
+    // Solo años hasta el actual (sin años futuros)
+    _anios = [anioActual - 2, anioActual - 1, anioActual];
     _cargar();
   }
 

@@ -38,6 +38,10 @@ class _RegisterScreenState extends State<RegisterScreen> {
   bool _cargandoManzanas = false;
   bool _cargandoVillas = false;
 
+  // Validación del ID de administrador contra el padrón
+  bool _adminValidado = false;
+  bool _validandoAdmin = false;
+
   final _cedulaCtrl = TextEditingController();
   final _nombresCtrl = TextEditingController();
   final _apellidosCtrl = TextEditingController();
@@ -78,6 +82,46 @@ class _RegisterScreenState extends State<RegisterScreen> {
     _villaCtrl.dispose();
     _idAdminCtrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _validarAdmin() async {
+    final id = _idAdminCtrl.text.trim();
+    if (id.isEmpty) {
+      _showSnack('Ingresa el ID de administrador', isError: true);
+      return;
+    }
+    setState(() => _validandoAdmin = true);
+    try {
+      final res = await _api.get('/usuarios/validar-admin/$id');
+      final data = res.data;
+      if (data['valido'] == true) {
+        if (!mounted) return;
+        setState(() {
+          _cedulaCtrl.text = (data['cedula'] ?? '').toString();
+          _nombresCtrl.text = (data['nombres'] ?? '').toString();
+          _apellidosCtrl.text = (data['apellidos'] ?? '').toString();
+          _adminValidado = true;
+          _validandoAdmin = false;
+        });
+        _showSnack('Administrador verificado correctamente');
+      } else {
+        if (!mounted) return;
+        setState(() => _validandoAdmin = false);
+        _showSnack((data['mensaje'] ?? 'ID no válido').toString(),
+            isError: true);
+      }
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _validandoAdmin = false);
+      String mensaje = 'Error al validar el ID';
+      if (e is DioException && e.response?.data != null) {
+        final data = e.response!.data;
+        if (data is Map && data['message'] != null) {
+          mensaje = data['message'].toString();
+        }
+      }
+      _showSnack(mensaje, isError: true);
+    }
   }
 
   Future<void> _registrar() async {
@@ -316,6 +360,11 @@ class _RegisterScreenState extends State<RegisterScreen> {
           child: GestureDetector(
             onTap: () => setState(() {
               _rol = r['key'] as String;
+              // Resetear validación de admin al cambiar de rol
+              _adminValidado = false;
+              _cedulaCtrl.clear();
+              _nombresCtrl.clear();
+              _apellidosCtrl.clear();
             }),
             child: Container(
               margin: const EdgeInsets.only(right: 8),
@@ -494,57 +543,129 @@ class _RegisterScreenState extends State<RegisterScreen> {
   }
 
   Widget _buildPaso1() {
+    final esAdmin = _rol == 'administrador';
+    // Para admin, los campos de identidad se muestran solo tras validar el ID
+    final mostrarCampos = !esAdmin || _adminValidado;
     return Form(
       key: _formKey1,
       child: Column(
         children: [
-          CustomTextField(
-            label: 'Cédula',
-            hint: '0999999999',
-            prefixIcon: Icons.badge_outlined,
-            controller: _cedulaCtrl,
-            keyboardType: TextInputType.number,
-            validator: Validators.cedulaEcuatoriana,
-          ),
-          const SizedBox(height: 14),
-          CustomTextField(
-            label: 'Nombres',
-            hint: 'Escriba sus nombres',
-            prefixIcon: Icons.person_outline,
-            controller: _nombresCtrl,
-            validator: (v) => Validators.requerido(v, 'Nombres'),
-          ),
-          const SizedBox(height: 14),
-          CustomTextField(
-            label: 'Apellidos',
-            hint: 'Escriba sus apellidos',
-            prefixIcon: Icons.person_outline,
-            controller: _apellidosCtrl,
-            validator: (v) => Validators.requerido(v, 'Apellidos'),
-          ),
-          const SizedBox(height: 14),
-          CustomTextField(
-            label: 'Correo',
-            hint: 'usuario@correo.com',
-            prefixIcon: Icons.mail_outline_rounded,
-            controller: _correoCtrl,
-            keyboardType: TextInputType.emailAddress,
-            validator: Validators.correo,
-          ),
-          const SizedBox(height: 14),
-          CustomTextField(
-            label: 'Teléfono',
-            hint: '0999999999',
-            prefixIcon: Icons.phone_outlined,
-            controller: _telefonoCtrl,
-            keyboardType: TextInputType.phone,
-            validator: (v) => Validators.requerido(v, 'Teléfono'),
-          ),
-          const SizedBox(height: 24),
+          if (esAdmin) ...[
+            CustomTextField(
+              label: 'ID de Administrador',
+              hint: 'Ej. ADM-001',
+              prefixIcon: Icons.admin_panel_settings_outlined,
+              controller: _idAdminCtrl,
+              validator: (v) => Validators.requerido(v, 'ID de Administrador'),
+              enabled: !_adminValidado,
+            ),
+            const SizedBox(height: 12),
+            if (!_adminValidado)
+              SizedBox(
+                width: double.infinity,
+                child: OutlinedButton.icon(
+                  onPressed: _validandoAdmin ? null : _validarAdmin,
+                  icon: _validandoAdmin
+                      ? const SizedBox(
+                          width: 18,
+                          height: 18,
+                          child: CircularProgressIndicator(strokeWidth: 2))
+                      : const Icon(Icons.search),
+                  label: Text(_validandoAdmin ? 'Validando...' : 'Validar ID'),
+                  style: OutlinedButton.styleFrom(
+                    side: const BorderSide(color: AppColors.primary),
+                    foregroundColor: AppColors.primary,
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(10)),
+                  ),
+                ),
+              ),
+            if (_adminValidado)
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(
+                  color: AppColors.success.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                  border: Border.all(
+                      color: AppColors.success.withValues(alpha: 0.3)),
+                ),
+                child: const Row(
+                  children: [
+                    Icon(Icons.check_circle_outline,
+                        color: AppColors.success, size: 18),
+                    SizedBox(width: 8),
+                    Expanded(
+                      child: Text('Administrador verificado',
+                          style: TextStyle(
+                              fontSize: 13,
+                              color: AppColors.success,
+                              fontWeight: FontWeight.w600)),
+                    ),
+                  ],
+                ),
+              ),
+            const SizedBox(height: 14),
+          ],
+          if (mostrarCampos) ...[
+            CustomTextField(
+              label: 'Cédula',
+              hint: '0999999999',
+              prefixIcon: Icons.badge_outlined,
+              controller: _cedulaCtrl,
+              keyboardType: TextInputType.number,
+              validator: Validators.cedulaEcuatoriana,
+              enabled: !esAdmin,
+            ),
+            const SizedBox(height: 14),
+            CustomTextField(
+              label: 'Nombres',
+              hint: 'Escriba sus nombres',
+              prefixIcon: Icons.person_outline,
+              controller: _nombresCtrl,
+              validator: (v) => Validators.nombreValido(v, 'Nombres'),
+              enabled: !esAdmin,
+            ),
+            const SizedBox(height: 14),
+            CustomTextField(
+              label: 'Apellidos',
+              hint: 'Escriba sus apellidos',
+              prefixIcon: Icons.person_outline,
+              controller: _apellidosCtrl,
+              validator: (v) => Validators.nombreValido(v, 'Apellidos'),
+              enabled: !esAdmin,
+            ),
+            const SizedBox(height: 14),
+            CustomTextField(
+              label: 'Correo',
+              hint: 'usuario@correo.com',
+              prefixIcon: Icons.mail_outline_rounded,
+              controller: _correoCtrl,
+              keyboardType: TextInputType.emailAddress,
+              validator: Validators.correo,
+            ),
+            const SizedBox(height: 14),
+            CustomTextField(
+              label: 'Teléfono',
+              hint: '0999999999',
+              prefixIcon: Icons.phone_outlined,
+              controller: _telefonoCtrl,
+              keyboardType: TextInputType.phone,
+              validator: (v) => Validators.requerido(v, 'Teléfono'),
+            ),
+            const SizedBox(height: 24),
+          ],
           CustomButton(
             text: 'Siguiente',
             isLoading: _isLoading,
             onPressed: () async {
+              // Para admin, exigir que el ID haya sido validado
+              if (_rol == 'administrador' && !_adminValidado) {
+                _showSnack('Primero valida el ID de administrador',
+                    isError: true);
+                return;
+              }
               if (!_formKey1.currentState!.validate()) return;
               setState(() => _isLoading = true);
               try {
@@ -749,6 +870,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               prefixIcon: Icons.admin_panel_settings_outlined,
               controller: _idAdminCtrl,
               validator: (v) => Validators.requerido(v, 'ID de Administrador'),
+              enabled: false,
             ),
             const SizedBox(height: 14),
           ],

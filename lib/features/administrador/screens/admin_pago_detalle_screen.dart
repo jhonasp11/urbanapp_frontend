@@ -139,21 +139,12 @@ class _AdminDetallePagoScreenState extends State<AdminDetallePagoScreen> {
     setState(() => _procesando = true);
     final api = ApiService();
     final adminId = await _obtenerAdminId();
-    final residente = widget.pago['residente'] ?? {};
-    final usuarioId = residente['usuario_id'] ?? '';
     try {
       await api.patch('/pagos/${widget.pago['id']}/validar', data: {
         'estado': 'aprobado',
         'validado_por': adminId,
       });
-      try {
-        await api.post('/notificaciones', data: {
-          'usuario_id': usuarioId,
-          'tipo': 'sistema',
-          'titulo': 'Pago aprobado',
-          'mensaje': 'Tu pago ha sido aprobado y registrado correctamente.',
-        });
-      } catch (_) {}
+      // La notificación al residente la crea el backend al validar el pago.
       widget.onActualizado();
       if (!context.mounted) return;
       Navigator.pushReplacement(
@@ -330,23 +321,13 @@ class _AdminDetallePagoScreenState extends State<AdminDetallePagoScreen> {
 
     final api = ApiService();
     final adminId = await _obtenerAdminId();
-    final residente = widget.pago['residente'] ?? {};
-    final usuarioId = residente['usuario_id'] ?? '';
     try {
       await api.patch('/pagos/${widget.pago['id']}/validar', data: {
         'estado': 'rechazado',
         'validado_por': adminId,
         'observacion_admin': motivoCtrl.text.trim(),
       });
-      try {
-        await api.post('/notificaciones', data: {
-          'usuario_id': usuarioId,
-          'tipo': 'sistema',
-          'titulo': 'Pago rechazado',
-          'mensaje':
-              'Tu pago ha sido rechazado. Motivo: ${motivoCtrl.text.trim()}',
-        });
-      } catch (_) {}
+      // La notificación al residente la crea el backend al validar el pago.
       widget.onActualizado();
       if (!context.mounted) return;
       Navigator.of(context).pop();

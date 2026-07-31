@@ -38,11 +38,11 @@ class _SubirComprobanteScreenState extends State<SubirComprobanteScreen> {
   String _formatoArchivo = 'imagen';
   int _cantidadMeses = 1;
 
-  final List<String> _metodos = ['Transferencia', 'Deposito'];
+  final List<String> _metodos = ['Transferencia', 'Depósito'];
   final List<String> _bancos = [
     'Banco Guayaquil',
     'Banco Pichincha',
-    'Banco Pacifico',
+    'Banco Pacífico',
     'Produbanco',
     'Banco Internacional'
   ];

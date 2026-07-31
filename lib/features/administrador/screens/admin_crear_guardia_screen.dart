@@ -285,7 +285,7 @@ class _AdminCrearGuardiaScreenState extends State<AdminCrearGuardiaScreen> {
             hint: 'Escriba sus nombres',
             prefixIcon: Icons.person_outline,
             controller: _nombresCtrl,
-            validator: (v) => Validators.requerido(v, 'Nombres'),
+            validator: (v) => Validators.nombreValido(v, 'Nombres'),
           ),
           const SizedBox(height: 14),
           CustomTextField(
@@ -293,7 +293,7 @@ class _AdminCrearGuardiaScreenState extends State<AdminCrearGuardiaScreen> {
             hint: 'Escriba sus apellidos',
             prefixIcon: Icons.person_outline,
             controller: _apellidosCtrl,
-            validator: (v) => Validators.requerido(v, 'Apellidos'),
+            validator: (v) => Validators.nombreValido(v, 'Apellidos'),
           ),
           const SizedBox(height: 14),
           CustomTextField(

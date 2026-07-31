@@ -6,7 +6,9 @@ import 'pagos_detalle_screen.dart';
 
 class PagosHistorialScreen extends StatefulWidget {
   final String userId;
-  const PagosHistorialScreen({super.key, required this.userId});
+  final String? nombreTitular;
+  const PagosHistorialScreen(
+      {super.key, required this.userId, this.nombreTitular});
 
   @override
   State<PagosHistorialScreen> createState() => _PagosHistorialScreenState();
@@ -208,7 +210,9 @@ class _PagosHistorialScreenState extends State<PagosHistorialScreen>
           return GestureDetector(
             onTap: () => Navigator.push(
               context,
-              MaterialPageRoute(builder: (_) => PagosDetalleScreen(pago: pago)),
+              MaterialPageRoute(
+                  builder: (_) => PagosDetalleScreen(
+                      pago: pago, nombreTitular: widget.nombreTitular)),
             ),
             child: Container(
               margin: const EdgeInsets.only(bottom: 12),

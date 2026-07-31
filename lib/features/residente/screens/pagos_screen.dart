@@ -22,6 +22,12 @@ class _PagosScreenState extends State<PagosScreen> {
   String _residenteId = '';
   Set<String> _alicuotasConPagoPendiente = {};
 
+  // Titularidad de la villa
+  bool _esTitular = true;
+  String _nombreTitular = '';
+  bool _hayTitular = true;
+  String _titularResidenteId = '';
+
   final List<String> _meses = [
     '',
     'Enero',
@@ -48,10 +54,54 @@ class _PagosScreenState extends State<PagosScreen> {
     try {
       final residenteId = await _storage.read(key: 'residente_id') ?? '';
       _residenteId = residenteId;
+      final titularFlag = await _storage.read(key: 'titular') ?? 'true';
+      _esTitular = titularFlag == 'true';
       if (residenteId.isEmpty) {
         setState(() => _loading = false);
         return;
       }
+
+      // Residente NO titular: consulta las alícuotas y pagos de la villa (del titular)
+      if (!_esTitular) {
+        final resVilla =
+            await _api.get('${ApiConstants.alicuotas}/villa/$residenteId');
+        final data = resVilla.data as Map<String, dynamic>;
+        final hayTitular = data['hay_titular'] == true;
+        final alicuotas = (data['alicuotas'] as List?) ?? [];
+        final pagos = (data['pagos'] as List?) ?? [];
+
+        final alicuotasConPagoPendiente = <String>{};
+        for (final pago in pagos) {
+          if (pago['estado'] == 'pendiente') {
+            final pagosAlicuotas = pago['pagos_alicuotas'] as List? ?? [];
+            for (final pa in pagosAlicuotas) {
+              alicuotasConPagoPendiente.add(pa['alicuota_id'].toString());
+            }
+          }
+        }
+
+        if (!mounted) return;
+        setState(() {
+          _hayTitular = hayTitular;
+          _nombreTitular = (data['titular_nombre'] ?? '').toString();
+          _titularResidenteId = (data['titular_residente_id'] ?? '').toString();
+          _pendientes =
+              alicuotas.where((a) => a['estado'] == 'pendiente').toList()
+                ..sort((a, b) {
+                  final anioA = a['anio'] ?? 0;
+                  final anioB = b['anio'] ?? 0;
+                  final mesA = a['mes'] ?? 0;
+                  final mesB = b['mes'] ?? 0;
+                  if (anioA != anioB) return anioA.compareTo(anioB);
+                  return mesA.compareTo(mesB);
+                });
+          _alicuotasConPagoPendiente = alicuotasConPagoPendiente;
+          _loading = false;
+        });
+        return;
+      }
+
+      // Residente titular: flujo normal con sus propias alícuotas y pagos
       final resAlicuotas =
           await _api.get('${ApiConstants.alicuotas}/residente/$residenteId');
       final resPagos =
@@ -94,6 +144,27 @@ class _PagosScreenState extends State<PagosScreen> {
   double get _totalDeuda => _pendientes.fold(0.0,
       (sum, a) => sum + (double.tryParse((a['monto'] ?? 0).toString()) ?? 0.0));
 
+  // Determina si una alícuota está vencida comparando su fecha de
+  // vencimiento con la fecha actual. Vencida = hoy es posterior al vencimiento.
+  bool _estaVencida(String fechaVencimiento) {
+    if (fechaVencimiento.isEmpty) return false;
+    try {
+      final venc = DateTime.parse(fechaVencimiento);
+      final ahora = DateTime.now();
+      final hoy = DateTime(ahora.year, ahora.month, ahora.day);
+      // Vencida solo si hoy es estrictamente posterior a la fecha de vencimiento
+      return hoy.isAfter(venc);
+    } catch (_) {
+      return false;
+    }
+  }
+
+  // Formatea 'YYYY-MM-DD' a 'DD/MM/YYYY'
+  String _fechaLegible(String iso) {
+    if (iso.length < 10) return iso;
+    return '${iso.substring(8, 10)}/${iso.substring(5, 7)}/${iso.substring(0, 4)}';
+  }
+
   @override
   Widget build(BuildContext context) {
     final alDia = _pendientes.isEmpty;
@@ -119,6 +190,38 @@ class _PagosScreenState extends State<PagosScreen> {
                 padding: const EdgeInsets.all(16),
                 child: Column(
                   children: [
+                    if (!_esTitular) ...[
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(14),
+                        margin: const EdgeInsets.only(bottom: 16),
+                        decoration: BoxDecoration(
+                          color: AppColors.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                              color: AppColors.primary.withValues(alpha: 0.3)),
+                        ),
+                        child: Row(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Icon(Icons.info_outline,
+                                color: AppColors.primary, size: 20),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(
+                                _hayTitular
+                                    ? 'La alícuota de tu villa es gestionada por el titular: $_nombreTitular. Solo el titular puede subir el pago.'
+                                    : 'Tu villa no tiene un titular asignado actualmente. Contacta al administrador.',
+                                style: const TextStyle(
+                                    fontSize: 12,
+                                    color: AppColors.textPrimary,
+                                    height: 1.4),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
                     Container(
                       width: double.infinity,
                       padding: const EdgeInsets.all(20),
@@ -274,11 +377,21 @@ class _PagosScreenState extends State<PagosScreen> {
                                                     color:
                                                         AppColors.textPrimary)),
                                             if (vencimiento.isNotEmpty)
-                                              Text('Vence: $vencimiento',
-                                                  style: const TextStyle(
+                                              Text(
+                                                  _estaVencida(vencimiento)
+                                                      ? 'Venció: ${_fechaLegible(vencimiento)}'
+                                                      : 'Vence: ${_fechaLegible(vencimiento)}',
+                                                  style: TextStyle(
                                                       fontSize: 11,
-                                                      color: AppColors
-                                                          .textSecondary)),
+                                                      fontWeight: _estaVencida(
+                                                              vencimiento)
+                                                          ? FontWeight.w600
+                                                          : FontWeight.normal,
+                                                      color: _estaVencida(
+                                                              vencimiento)
+                                                          ? AppColors.error
+                                                          : AppColors
+                                                              .textSecondary)),
                                             if (tienePagoPendiente)
                                               const Text(
                                                   'En revisión por el administrador',
@@ -295,7 +408,10 @@ class _PagosScreenState extends State<PagosScreen> {
                                                 fontWeight: FontWeight.w700,
                                                 color: tienePagoPendiente
                                                     ? Colors.orange
-                                                    : AppColors.error)),
+                                                    : (_estaVencida(vencimiento)
+                                                        ? AppColors.error
+                                                        : AppColors
+                                                            .textPrimary))),
                                       ],
                                     ),
                                   );
@@ -305,6 +421,20 @@ class _PagosScreenState extends State<PagosScreen> {
                                   width: double.infinity,
                                   child: ElevatedButton(
                                     onPressed: () {
+                                      // Solo el titular puede subir el pago
+                                      if (!_esTitular) {
+                                        ScaffoldMessenger.of(context)
+                                            .showSnackBar(
+                                          SnackBar(
+                                            content: Text(_nombreTitular.isEmpty
+                                                ? 'Solo el titular de la villa puede subir el pago.'
+                                                : 'Solo el titular ($_nombreTitular) puede subir el pago. Avísale para que lo gestione.'),
+                                            backgroundColor: AppColors.primary,
+                                            behavior: SnackBarBehavior.floating,
+                                          ),
+                                        );
+                                        return;
+                                      }
                                       final alicuotasDisponibles = _pendientes
                                           .where((a) =>
                                               !_alicuotasConPagoPendiente
@@ -377,8 +507,12 @@ class _PagosScreenState extends State<PagosScreen> {
                         onPressed: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                PagosHistorialScreen(userId: _residenteId),
+                            builder: (_) => PagosHistorialScreen(
+                                userId: _esTitular
+                                    ? _residenteId
+                                    : _titularResidenteId,
+                                nombreTitular:
+                                    _esTitular ? null : _nombreTitular),
                           ),
                         ),
                         style: ElevatedButton.styleFrom(

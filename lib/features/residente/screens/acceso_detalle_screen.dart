@@ -251,22 +251,24 @@ class _AccesoDetalleScreenState extends State<AccesoDetalleScreen> {
                       padding: const EdgeInsets.symmetric(
                           horizontal: 12, vertical: 8),
                       decoration: BoxDecoration(
-                        color: Colors.amber.withValues(alpha: 0.1),
+                        color: AppColors.primary.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(8),
                         border: Border.all(
-                            color: Colors.amber.withValues(alpha: 0.4)),
+                            color: AppColors.primary.withValues(alpha: 0.3)),
                       ),
                       child: const Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: [
                           Icon(Icons.wb_sunny_outlined,
-                              color: Colors.amber, size: 16),
+                              color: AppColors.primary, size: 16),
                           SizedBox(width: 6),
                           Expanded(
                             child: Text(
                               'No olvide subir al máximo el brillo de su celular',
-                              style:
-                                  TextStyle(fontSize: 11, color: Colors.amber),
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: AppColors.primary),
                               textAlign: TextAlign.center,
                             ),
                           ),

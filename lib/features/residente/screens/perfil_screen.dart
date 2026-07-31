@@ -44,7 +44,11 @@ class _PerfilScreenState extends State<PerfilScreen> {
   }
 
   Future<void> _seleccionarFuente() async {
-    final fuente = await showModalBottomSheet<ImageSource>(
+    final residente = _usuario?['residente'] ?? {};
+    final fotoUrl = (residente['foto_url'] ?? '').toString();
+    final tieneFoto = fotoUrl.isNotEmpty;
+
+    final accion = await showModalBottomSheet<String>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -63,26 +67,135 @@ class _PerfilScreenState extends State<PerfilScreen> {
               ),
             ),
             const SizedBox(height: 12),
+            if (tieneFoto)
+              ListTile(
+                leading: const Icon(Icons.visibility_outlined,
+                    color: AppColors.primary),
+                title: const Text('Ver foto'),
+                onTap: () => Navigator.pop(ctx, 'ver'),
+              ),
             ListTile(
               leading: const Icon(Icons.camera_alt_outlined,
                   color: AppColors.primary),
               title: const Text('Tomar foto'),
-              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              onTap: () => Navigator.pop(ctx, 'camara'),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined,
                   color: AppColors.primary),
               title: const Text('Elegir de la galería'),
-              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              onTap: () => Navigator.pop(ctx, 'galeria'),
             ),
+            if (tieneFoto)
+              ListTile(
+                leading:
+                    const Icon(Icons.delete_outline, color: AppColors.error),
+                title: const Text('Eliminar foto',
+                    style: TextStyle(color: AppColors.error)),
+                onTap: () => Navigator.pop(ctx, 'eliminar'),
+              ),
             const SizedBox(height: 8),
           ],
         ),
       ),
     );
 
-    if (fuente == null) return;
-    await _subirFoto(fuente);
+    if (accion == null) return;
+    if (accion == 'ver') {
+      _verFoto(fotoUrl);
+    } else if (accion == 'camara') {
+      await _subirFoto(ImageSource.camera);
+    } else if (accion == 'galeria') {
+      await _subirFoto(ImageSource.gallery);
+    } else if (accion == 'eliminar') {
+      await _eliminarFoto();
+    }
+  }
+
+  void _verFoto(String url) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        insetPadding: const EdgeInsets.all(12),
+        backgroundColor: Colors.black,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4,
+              child: Center(
+                child: Image.network(url, fit: BoxFit.contain),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => Navigator.pop(ctx),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _eliminarFoto() async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Eliminar foto'),
+        content: const Text('¿Seguro que deseas eliminar tu foto de perfil?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar',
+                style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar',
+                style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+    try {
+      final userId = await _storage.read(key: 'usuario_id') ?? '';
+      await _api.delete('/usuarios/$userId/foto');
+      if (!mounted) return;
+      await _cargar();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Foto de perfil eliminada'),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        String mensaje = 'No se pudo eliminar la foto';
+        if (e is DioException && e.response?.data != null) {
+          final data = e.response!.data;
+          if (data is Map && data['message'] != null) {
+            mensaje = data['message'].toString();
+          }
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(mensaje),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _subirFoto(ImageSource fuente) async {

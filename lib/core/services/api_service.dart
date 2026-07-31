@@ -117,15 +117,16 @@ class ApiService {
   Future<Response> patch(String path, {dynamic data}) =>
       _dio.patch(path, data: data);
 
+  Future<Response> delete(String path, {dynamic data}) =>
+      _dio.delete(path, data: data);
+
   Future<Response> patchFile(String path, FormData formData) => _dio.patch(
         path,
         data: formData,
-        options: Options(headers: {'Content-Type': 'multipart/form-data'}),
       );
 
   Future<Response> postFile(String path, FormData formData) => _dio.post(
         path,
         data: formData,
-        options: Options(headers: {'Content-Type': 'multipart/form-data'}),
       );
 }

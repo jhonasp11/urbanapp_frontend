@@ -44,6 +44,25 @@ class Validators {
     return null;
   }
 
+  static String? nombreValido(String? value, String campo) {
+    final texto = (value ?? '').trim();
+    if (texto.isEmpty) return '$campo es requerido';
+    if (texto.length < 3) return '$campo debe tener al menos 3 caracteres';
+    // Solo letras (con tildes y ñ) y espacios
+    if (!RegExp(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑüÜ\s]+$').hasMatch(texto)) {
+      return '$campo solo puede contener letras';
+    }
+    // No permitir la misma letra 3 o más veces seguidas (ej. "aaa")
+    if (RegExp(r'(.)\1\1', caseSensitive: false).hasMatch(texto)) {
+      return '$campo no es válido';
+    }
+    // Al menos una vocal
+    if (!RegExp(r'[aeiouáéíóúAEIOUÁÉÍÓÚ]').hasMatch(texto)) {
+      return '$campo no es válido';
+    }
+    return null;
+  }
+
   static String? manzana(String? value) {
     if (value == null || value.trim().isEmpty) return 'Ingresa la manzana';
     if (value.trim().length > 4) return 'Máximo 4 caracteres';

@@ -53,7 +53,10 @@ class _GuardiaPerfilScreenState extends State<GuardiaPerfilScreen> {
   }
 
   Future<void> _seleccionarFuente() async {
-    final fuente = await showModalBottomSheet<ImageSource>(
+    final fotoUrl = (_usuario?['guardia']?['foto_url'] ?? '').toString();
+    final tieneFoto = fotoUrl.isNotEmpty;
+
+    final accion = await showModalBottomSheet<String>(
       context: context,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
@@ -72,26 +75,135 @@ class _GuardiaPerfilScreenState extends State<GuardiaPerfilScreen> {
               ),
             ),
             const SizedBox(height: 12),
+            if (tieneFoto)
+              ListTile(
+                leading: const Icon(Icons.visibility_outlined,
+                    color: AppColors.primary),
+                title: const Text('Ver foto'),
+                onTap: () => Navigator.pop(ctx, 'ver'),
+              ),
             ListTile(
               leading: const Icon(Icons.camera_alt_outlined,
                   color: AppColors.primary),
               title: const Text('Tomar foto'),
-              onTap: () => Navigator.pop(ctx, ImageSource.camera),
+              onTap: () => Navigator.pop(ctx, 'camara'),
             ),
             ListTile(
               leading: const Icon(Icons.photo_library_outlined,
                   color: AppColors.primary),
               title: const Text('Elegir de la galería'),
-              onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+              onTap: () => Navigator.pop(ctx, 'galeria'),
             ),
+            if (tieneFoto)
+              ListTile(
+                leading:
+                    const Icon(Icons.delete_outline, color: AppColors.error),
+                title: const Text('Eliminar foto',
+                    style: TextStyle(color: AppColors.error)),
+                onTap: () => Navigator.pop(ctx, 'eliminar'),
+              ),
             const SizedBox(height: 8),
           ],
         ),
       ),
     );
 
-    if (fuente == null) return;
-    await _subirFoto(fuente);
+    if (accion == null) return;
+    if (accion == 'ver') {
+      _verFoto(fotoUrl);
+    } else if (accion == 'camara') {
+      await _subirFoto(ImageSource.camera);
+    } else if (accion == 'galeria') {
+      await _subirFoto(ImageSource.gallery);
+    } else if (accion == 'eliminar') {
+      await _eliminarFoto();
+    }
+  }
+
+  void _verFoto(String url) {
+    showDialog(
+      context: context,
+      builder: (ctx) => Dialog(
+        insetPadding: const EdgeInsets.all(12),
+        backgroundColor: Colors.black,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+        child: Stack(
+          children: [
+            InteractiveViewer(
+              minScale: 0.5,
+              maxScale: 4,
+              child: Center(
+                child: Image.network(url, fit: BoxFit.contain),
+              ),
+            ),
+            Positioned(
+              top: 8,
+              right: 8,
+              child: IconButton(
+                icon: const Icon(Icons.close, color: Colors.white),
+                onPressed: () => Navigator.pop(ctx),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _eliminarFoto() async {
+    final confirmar = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Eliminar foto'),
+        content: const Text('¿Seguro que deseas eliminar tu foto de perfil?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar',
+                style: TextStyle(color: AppColors.textSecondary)),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Eliminar',
+                style: TextStyle(color: AppColors.error)),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmar != true) return;
+    try {
+      final userId = await _storage.read(key: 'usuario_id') ?? '';
+      await _api.delete('/usuarios/$userId/foto');
+      if (!mounted) return;
+      await _cargar();
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Foto de perfil eliminada'),
+          backgroundColor: AppColors.success,
+          behavior: SnackBarBehavior.floating,
+        ),
+      );
+    } catch (e) {
+      if (mounted) {
+        String mensaje = 'No se pudo eliminar la foto';
+        if (e is DioException && e.response?.data != null) {
+          final data = e.response!.data;
+          if (data is Map && data['message'] != null) {
+            mensaje = data['message'].toString();
+          }
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text(mensaje),
+            backgroundColor: AppColors.error,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _subirFoto(ImageSource fuente) async {
@@ -103,29 +215,41 @@ class _GuardiaPerfilScreenState extends State<GuardiaPerfilScreen> {
       );
       if (imagen == null) return;
 
-      setState(() => _subiendoFoto = true);
-
+      // Leer los bytes ANTES del setState y de cualquier await largo,
+      // porque en algunos dispositivos la pantalla se recrea al usar el picker.
+      final bytes = await imagen.readAsBytes();
       final userId = await _storage.read(key: 'usuario_id') ?? '';
+
+      if (mounted) setState(() => _subiendoFoto = true);
+
       final formData = FormData.fromMap({
-        'foto': await MultipartFile.fromFile(
-          imagen.path,
-          filename: imagen.name,
-        ),
+        'foto': MultipartFile.fromBytes(bytes, filename: imagen.name),
       });
 
-      await _api.patchFile('/usuarios/$userId/foto', formData);
+      final resp = await _api.patchFile('/usuarios/$userId/foto', formData);
 
-      if (!mounted) return;
+      final nuevaUrl = resp.data?['foto_url'];
+      if (nuevaUrl != null) {
+        // Evictar del caché para forzar descarga de la imagen nueva
+        await NetworkImage(nuevaUrl.toString()).evict();
+      }
+
+      // Recargar los datos del perfil (trae la URL nueva)
       await _cargar();
 
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(
-          content: Text('Foto de perfil actualizada'),
-          backgroundColor: AppColors.success,
-          behavior: SnackBarBehavior.floating,
-        ),
-      );
+      // Mostrar el mensaje usando el navigatorKey global, que no depende
+      // de que esta pantalla siga viva (el picker puede recrearla).
+      final messenger = navigatorKey.currentState?.overlay?.context;
+      if (messenger != null && messenger.mounted) {
+        ScaffoldMessenger.of(messenger).showSnackBar(
+          const SnackBar(
+            content: Text(
+                'Foto de perfil actualizada. Desliza hacia abajo para verla.'),
+            backgroundColor: AppColors.success,
+            behavior: SnackBarBehavior.floating,
+          ),
+        );
+      }
     } catch (e) {
       String mensaje = 'No se pudo actualizar la foto';
       if (e is DioException && e.response?.data != null) {
@@ -241,200 +365,205 @@ class _GuardiaPerfilScreenState extends State<GuardiaPerfilScreen> {
       ),
       body: _loading
           ? const Center(child: CircularProgressIndicator())
-          : SingleChildScrollView(
-              padding: const EdgeInsets.all(16),
-              child: Column(
-                children: [
-                  // Avatar y nombre
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(24),
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        GestureDetector(
-                          onTap: _subiendoFoto ? null : _seleccionarFuente,
-                          child: Stack(
-                            children: [
-                              CircleAvatar(
-                                radius: 40,
-                                backgroundColor:
-                                    AppColors.primary.withValues(alpha: 0.1),
-                                backgroundImage: fotoUrl.isNotEmpty
-                                    ? NetworkImage(fotoUrl)
-                                    : null,
-                                child: fotoUrl.isEmpty
-                                    ? Text(
-                                        nombres.isNotEmpty
-                                            ? nombres[0].toUpperCase()
-                                            : 'G',
-                                        style: const TextStyle(
-                                            fontSize: 32,
-                                            fontWeight: FontWeight.w700,
-                                            color: AppColors.primary),
-                                      )
-                                    : null,
-                              ),
-                              if (_subiendoFoto)
-                                Positioned.fill(
-                                  child: Container(
-                                    decoration: BoxDecoration(
-                                      color:
-                                          Colors.black.withValues(alpha: 0.4),
-                                      shape: BoxShape.circle,
-                                    ),
-                                    child: const Center(
-                                      child: SizedBox(
-                                        width: 24,
-                                        height: 24,
-                                        child: CircularProgressIndicator(
-                                          strokeWidth: 2,
-                                          color: Colors.white,
+          : RefreshIndicator(
+              onRefresh: _cargar,
+              child: SingleChildScrollView(
+                physics: const AlwaysScrollableScrollPhysics(),
+                padding: const EdgeInsets.all(16),
+                child: Column(
+                  children: [
+                    // Avatar y nombre
+                    Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          GestureDetector(
+                            onTap: _subiendoFoto ? null : _seleccionarFuente,
+                            child: Stack(
+                              children: [
+                                CircleAvatar(
+                                  radius: 40,
+                                  backgroundColor:
+                                      AppColors.primary.withValues(alpha: 0.1),
+                                  backgroundImage: fotoUrl.isNotEmpty
+                                      ? NetworkImage(fotoUrl)
+                                      : null,
+                                  child: fotoUrl.isEmpty
+                                      ? Text(
+                                          nombres.isNotEmpty
+                                              ? nombres[0].toUpperCase()
+                                              : 'G',
+                                          style: const TextStyle(
+                                              fontSize: 32,
+                                              fontWeight: FontWeight.w700,
+                                              color: AppColors.primary),
+                                        )
+                                      : null,
+                                ),
+                                if (_subiendoFoto)
+                                  Positioned.fill(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                        color:
+                                            Colors.black.withValues(alpha: 0.4),
+                                        shape: BoxShape.circle,
+                                      ),
+                                      child: const Center(
+                                        child: SizedBox(
+                                          width: 24,
+                                          height: 24,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2,
+                                            color: Colors.white,
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              Positioned(
-                                bottom: 0,
-                                right: 0,
-                                child: Container(
-                                  width: 24,
-                                  height: 24,
-                                  decoration: BoxDecoration(
-                                    color: AppColors.primary,
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                        color: AppColors.white, width: 2),
+                                Positioned(
+                                  bottom: 0,
+                                  right: 0,
+                                  child: Container(
+                                    width: 24,
+                                    height: 24,
+                                    decoration: BoxDecoration(
+                                      color: AppColors.primary,
+                                      shape: BoxShape.circle,
+                                      border: Border.all(
+                                          color: AppColors.white, width: 2),
+                                    ),
+                                    child: const Icon(Icons.edit,
+                                        color: AppColors.white, size: 12),
                                   ),
-                                  child: const Icon(Icons.edit,
-                                      color: AppColors.white, size: 12),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Text('$nombres $apellidos',
+                              style: const TextStyle(
+                                  fontSize: 18,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.textPrimary)),
+                          const SizedBox(height: 4),
+                          const Text('Guardia de Seguridad',
+                              style: TextStyle(
+                                  fontSize: 13,
+                                  color: AppColors.textSecondary)),
+                          const SizedBox(height: 12),
+                          // Turno
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                                horizontal: 12, vertical: 8),
+                            decoration: BoxDecoration(
+                              color: AppColors.primary.withValues(alpha: 0.05),
+                              borderRadius: BorderRadius.circular(8),
+                              border: Border.all(
+                                  color:
+                                      AppColors.primary.withValues(alpha: 0.2)),
+                            ),
+                            child: Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(Icons.schedule_outlined,
+                                    color: AppColors.primary, size: 16),
+                                const SizedBox(width: 6),
+                                Text(
+                                  nombreTurno.isNotEmpty
+                                      ? '$nombreTurno • $horaInicio - $horaFin'
+                                      : 'Sin turno asignado',
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.primary,
+                                      fontWeight: FontWeight.w600),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                    const SizedBox(height: 16),
+
+                    // Opciones
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: Column(
+                        children: [
+                          _buildOpcion(
+                            icon: Icons.person_outline,
+                            titulo: 'Mis Datos Personales',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => GuardiaDatosPersonalesScreen(
+                                  usuario: _usuario ?? {},
+                                  onActualizado: _cargar,
                                 ),
                               ),
-                            ],
+                            ),
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        Text('$nombres $apellidos',
-                            style: const TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.textPrimary)),
-                        const SizedBox(height: 4),
-                        const Text('Guardia de Seguridad',
-                            style: TextStyle(
-                                fontSize: 13, color: AppColors.textSecondary)),
-                        const SizedBox(height: 12),
-                        // Turno
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 12, vertical: 8),
-                          decoration: BoxDecoration(
-                            color: AppColors.primary.withValues(alpha: 0.05),
-                            borderRadius: BorderRadius.circular(8),
-                            border: Border.all(
-                                color:
-                                    AppColors.primary.withValues(alpha: 0.2)),
-                          ),
-                          child: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                              const Icon(Icons.schedule_outlined,
-                                  color: AppColors.primary, size: 16),
-                              const SizedBox(width: 6),
-                              Text(
-                                nombreTurno.isNotEmpty
-                                    ? '$nombreTurno • $horaInicio - $horaFin'
-                                    : 'Sin turno asignado',
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    color: AppColors.primary,
-                                    fontWeight: FontWeight.w600),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                  const SizedBox(height: 16),
-
-                  // Opciones
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Column(
-                      children: [
-                        _buildOpcion(
-                          icon: Icons.person_outline,
-                          titulo: 'Mis Datos Personales',
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) => GuardiaDatosPersonalesScreen(
-                                usuario: _usuario ?? {},
-                                onActualizado: _cargar,
+                          const Divider(height: 1, color: AppColors.border),
+                          _buildOpcion(
+                            icon: Icons.lock_outline,
+                            titulo: 'Cambiar Contraseña',
+                            onTap: () => Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) =>
+                                    const GuardiaCambiarContrasenaScreen(),
                               ),
                             ),
                           ),
-                        ),
-                        const Divider(height: 1, color: AppColors.border),
-                        _buildOpcion(
-                          icon: Icons.lock_outline,
-                          titulo: 'Cambiar Contraseña',
-                          onTap: () => Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (_) =>
-                                  const GuardiaCambiarContrasenaScreen(),
-                            ),
-                          ),
-                        ),
-                      ],
+                        ],
+                      ),
                     ),
-                  ),
-                  const SizedBox(height: 16),
+                    const SizedBox(height: 16),
 
-                  // Cerrar sesión
-                  Container(
-                    decoration: BoxDecoration(
-                      color: AppColors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withValues(alpha: 0.05),
-                          blurRadius: 8,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
+                    // Cerrar sesión
+                    Container(
+                      decoration: BoxDecoration(
+                        color: AppColors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.05),
+                            blurRadius: 8,
+                            offset: const Offset(0, 2),
+                          ),
+                        ],
+                      ),
+                      child: _buildOpcion(
+                        icon: Icons.logout_rounded,
+                        titulo: 'Cerrar Sesión',
+                        color: AppColors.error,
+                        onTap: _cerrarSesion,
+                      ),
                     ),
-                    child: _buildOpcion(
-                      icon: Icons.logout_rounded,
-                      titulo: 'Cerrar Sesión',
-                      color: AppColors.error,
-                      onTap: _cerrarSesion,
-                    ),
-                  ),
-                ],
+                  ],
+                ),
               ),
             ),
     );

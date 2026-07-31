@@ -71,9 +71,19 @@ class _HomeContentScreenState extends State<HomeContentScreen> {
       }
 
       final residenteIdFinal = residenteId?.toString() ?? '';
+      final esTitular = resUser.data?['residente']?['titular'] == true;
 
-      final resAlicuota = await _api
-          .get('${ApiConstants.alicuotas}/residente/$residenteIdFinal');
+      // El no titular ve el saldo de la villa (alícuotas del titular)
+      List alicuotasCargadas;
+      if (esTitular) {
+        final resAlicuota = await _api
+            .get('${ApiConstants.alicuotas}/residente/$residenteIdFinal');
+        alicuotasCargadas = resAlicuota.data as List;
+      } else {
+        final resVilla =
+            await _api.get('${ApiConstants.alicuotas}/villa/$residenteIdFinal');
+        alicuotasCargadas = (resVilla.data['alicuotas'] as List?) ?? [];
+      }
 
       int sinLeer = 0;
       try {
@@ -87,9 +97,8 @@ class _HomeContentScreenState extends State<HomeContentScreen> {
 
       setState(() {
         _usuario = resUser.data;
-        final alicuotas = resAlicuota.data as List;
         _pendientes =
-            alicuotas.where((a) => a['estado'] == 'pendiente').toList();
+            alicuotasCargadas.where((a) => a['estado'] == 'pendiente').toList();
         _notificacionesSinLeer = sinLeer;
         _loading = false;
       });
@@ -325,13 +334,13 @@ class _HomeContentScreenState extends State<HomeContentScreen> {
                             padding: const EdgeInsets.symmetric(
                                 horizontal: 10, vertical: 4),
                             decoration: BoxDecoration(
-                              color: AppColors.error.withValues(alpha: 0.1),
+                              color: AppColors.primary.withValues(alpha: 0.1),
                               borderRadius: BorderRadius.circular(20),
                             ),
-                            child: const Text('PENDIENTE',
+                            child: const Text('REVISAR PAGOS',
                                 style: TextStyle(
                                     fontSize: 11,
-                                    color: AppColors.error,
+                                    color: AppColors.primary,
                                     fontWeight: FontWeight.w600)),
                           ),
                         ],

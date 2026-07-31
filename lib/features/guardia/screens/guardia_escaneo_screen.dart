@@ -24,7 +24,7 @@ class _GuardiaEscaneoScreenState extends State<GuardiaEscaneoScreen> {
   final TextEditingController _placaCtrl = TextEditingController();
 
   bool _procesando = false;
-  bool _listoParaLeer = false;
+  DateTime? _camaraListaEn;
   String _estado = 'escaneando';
   Map<String, dynamic>? _resultadoEscaneo;
   String _guardiaId = '';
@@ -36,10 +36,6 @@ class _GuardiaEscaneoScreenState extends State<GuardiaEscaneoScreen> {
   void initState() {
     super.initState();
     _cargarGuardia();
-    // 3 segundos de gracia para que el guardia encuadre el código
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) setState(() => _listoParaLeer = true);
-    });
   }
 
   @override
@@ -59,7 +55,11 @@ class _GuardiaEscaneoScreenState extends State<GuardiaEscaneoScreen> {
   }
 
   Future<void> _escanear(String codigoHash) async {
-    if (!_listoParaLeer ||
+    // Gracia de 3 segundos desde que la cámara empezó a detectar,
+    // para dar tiempo al guardia a encuadrar bien el código.
+    final listo = _camaraListaEn != null &&
+        DateTime.now().difference(_camaraListaEn!).inMilliseconds >= 3000;
+    if (!listo ||
         _procesando ||
         codigoHash.isEmpty ||
         _estado != 'escaneando') {
@@ -105,14 +105,10 @@ class _GuardiaEscaneoScreenState extends State<GuardiaEscaneoScreen> {
       _estado = 'escaneando';
       _resultadoEscaneo = null;
       _procesando = false;
-      _listoParaLeer = false;
+      _camaraListaEn = null;
     });
     Future.delayed(const Duration(milliseconds: 800), () {
       if (mounted) _scannerController.start();
-    });
-    // Nueva gracia de 3 segundos tras reintentar
-    Future.delayed(const Duration(seconds: 3), () {
-      if (mounted) setState(() => _listoParaLeer = true);
     });
   }
 
@@ -279,6 +275,8 @@ class _GuardiaEscaneoScreenState extends State<GuardiaEscaneoScreen> {
           MobileScanner(
             controller: _scannerController,
             onDetect: (capture) {
+              // La cámara ya está activa: iniciar la ventana de gracia de 3s
+              _camaraListaEn ??= DateTime.now();
               final barcodes = capture.barcodes;
               if (barcodes.isNotEmpty) {
                 final codigo = barcodes.first.rawValue ?? '';

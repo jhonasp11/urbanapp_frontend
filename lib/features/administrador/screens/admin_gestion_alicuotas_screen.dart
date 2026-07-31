@@ -41,7 +41,23 @@ class _AdminGestionAlicuotasScreenState
     'Diciembre'
   ];
 
-  final List<int> _anios = [2024, 2025, 2026, 2027];
+  // Cantidad de meses a mostrar: si es el año actual, hasta el mes actual;
+  // si es un año anterior, los 12 meses.
+  int get _mesesDisponibles {
+    final ahora = DateTime.now();
+    if (_anioSeleccionado == ahora.year) {
+      return ahora.month;
+    }
+    return 12;
+  }
+
+  // Solo años hasta el actual (sin años futuros)
+  List<int> get _anios {
+    final anioActual = DateTime.now().year;
+    return [
+      for (int a = 2024; a <= anioActual; a++) a,
+    ];
+  }
 
   @override
   void dispose() {
@@ -300,7 +316,7 @@ class _AdminGestionAlicuotasScreenState
                                     horizontal: 12, vertical: 10),
                               ),
                               items: List.generate(
-                                12,
+                                _mesesDisponibles,
                                 (i) => DropdownMenuItem(
                                   value: i + 1,
                                   child: Text(_meses[i],
@@ -353,7 +369,14 @@ class _AdminGestionAlicuotasScreenState
                                               const TextStyle(fontSize: 13))))
                                   .toList(),
                               onChanged: (v) {
-                                setState(() => _anioSeleccionado = v!);
+                                setState(() {
+                                  _anioSeleccionado = v!;
+                                  // Si el mes seleccionado ya no es válido
+                                  // para el año nuevo, ajustarlo al máximo.
+                                  if (_mesSeleccionado > _mesesDisponibles) {
+                                    _mesSeleccionado = _mesesDisponibles;
+                                  }
+                                });
                                 _actualizarFechaVencimiento();
                               },
                             ),
@@ -377,7 +400,7 @@ class _AdminGestionAlicuotasScreenState
                     keyboardType:
                         const TextInputType.numberWithOptions(decimal: true),
                     decoration: InputDecoration(
-                      hintText: 'Ej. 20,00',
+                      hintText: '\$ 20.00',
                       prefixText: '\$ ',
                       hintStyle: const TextStyle(
                           color: AppColors.textSecondary, fontSize: 14),
