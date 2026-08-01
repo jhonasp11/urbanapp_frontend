@@ -9,7 +9,9 @@ import '../../../core/constants/api_constants.dart';
 
 class EstadoCuentaScreen extends StatefulWidget {
   final String residenteId;
-  const EstadoCuentaScreen({super.key, required this.residenteId});
+  final String? generadoPor;
+  const EstadoCuentaScreen(
+      {super.key, required this.residenteId, this.generadoPor});
 
   @override
   State<EstadoCuentaScreen> createState() => _EstadoCuentaScreenState();
@@ -69,8 +71,11 @@ class _EstadoCuentaScreenState extends State<EstadoCuentaScreen> {
     try {
       const storage = FlutterSecureStorage();
       final token = await storage.read(key: 'token') ?? '';
+      final generadoPorParam = widget.generadoPor != null
+          ? '&generado_por=${widget.generadoPor}'
+          : '';
       final url =
-          '${ApiConstants.baseUrl}/alicuotas/residente/${widget.residenteId}/estado-cuenta?anio=$_anioSeleccionado&formato=pdf';
+          '${ApiConstants.baseUrl}/alicuotas/residente/${widget.residenteId}/estado-cuenta?anio=$_anioSeleccionado&formato=pdf$generadoPorParam';
 
       final dir = await getApplicationDocumentsDirectory();
       final filePath = '${dir.path}/estado_cuenta_$_anioSeleccionado.pdf';

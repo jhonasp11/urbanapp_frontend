@@ -535,8 +535,11 @@ class _PagosScreenState extends State<PagosScreen> {
                         onPressed: () => Navigator.push(
                           context,
                           MaterialPageRoute(
-                            builder: (_) =>
-                                EstadoCuentaScreen(residenteId: _residenteId),
+                            builder: (_) => EstadoCuentaScreen(
+                                residenteId: _esTitular
+                                    ? _residenteId
+                                    : _titularResidenteId,
+                                generadoPor: _esTitular ? null : _residenteId),
                           ),
                         ),
                         icon: const Icon(Icons.description_outlined,
