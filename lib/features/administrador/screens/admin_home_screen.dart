@@ -107,6 +107,8 @@ class _AdminInicioScreenState extends State<AdminInicioScreen> {
   Map<String, dynamic>? _usuario;
   int _totalResidentes = 0;
   int _pagosPendientes = 0;
+  int _reservasPendientes = 0;
+  int _villasConDeuda = 0;
   int _notificacionesSinLeer = 0;
   bool _loading = true;
 
@@ -136,6 +138,34 @@ class _AdminInicioScreenState extends State<AdminInicioScreen> {
         pagosPendientes = pagos.where((p) => p['estado'] == 'pendiente').length;
       } catch (_) {}
 
+      int reservasPendientes = 0;
+      try {
+        final resReservas = await _api.get('/reservas');
+        final reservas = resReservas.data as List;
+        // Solo reservas sin pago (tarifa 0) en estado pendiente
+        reservasPendientes = reservas.where((r) {
+          final estado = r['estado'];
+          final tarifa =
+              double.tryParse((r['area']?['tarifa_reserva'] ?? 0).toString()) ??
+                  0;
+          return estado == 'pendiente' && tarifa == 0;
+        }).length;
+      } catch (_) {}
+
+      int villasConDeuda = 0;
+      try {
+        final resAlic = await _api.get('/alicuotas');
+        final alicuotas = resAlic.data as List;
+        // Contar residentes (titulares) distintos con alícuota pendiente
+        final villasSet = <String>{};
+        for (final a in alicuotas) {
+          if (a['estado'] == 'pendiente') {
+            villasSet.add(a['residente_id'].toString());
+          }
+        }
+        villasConDeuda = villasSet.length;
+      } catch (_) {}
+
       try {
         final resNotif =
             await _api.get('${ApiConstants.notificaciones}/usuario/$userId');
@@ -148,6 +178,8 @@ class _AdminInicioScreenState extends State<AdminInicioScreen> {
         _usuario = resUser.data;
         _totalResidentes = totalResidentes;
         _pagosPendientes = pagosPendientes;
+        _reservasPendientes = reservasPendientes;
+        _villasConDeuda = villasConDeuda;
         _notificacionesSinLeer = sinLeer;
         _loading = false;
       });
@@ -281,6 +313,28 @@ class _AdminInicioScreenState extends State<AdminInicioScreen> {
                         ),
                       ],
                     ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: _buildTarjetaResumen(
+                            icono: Icons.event_available_outlined,
+                            titulo: 'RESERVAS PENDIENTES DE REVISAR',
+                            valor: '$_reservasPendientes',
+                            color: AppColors.error,
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: _buildTarjetaResumen(
+                            icono: Icons.home_work_outlined,
+                            titulo: 'RESIDENTES CON ALÍCUOTA PENDIENTE DE PAGO',
+                            valor: '$_villasConDeuda',
+                            color: AppColors.error,
+                          ),
+                        ),
+                      ],
+                    ),
                     const SizedBox(height: 24),
                     const Text('Accesos Rápidos',
                         style: TextStyle(
@@ -348,26 +402,31 @@ class _AdminInicioScreenState extends State<AdminInicioScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Container(
-            width: 40,
-            height: 40,
-            decoration: BoxDecoration(
-              color: color.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(10),
-            ),
-            child: Icon(icono, color: color, size: 22),
-          ),
-          const SizedBox(height: 12),
           Text(titulo,
               style: const TextStyle(
                   fontSize: 10,
                   color: AppColors.textSecondary,
                   fontWeight: FontWeight.w600,
                   letterSpacing: 0.5)),
-          const SizedBox(height: 4),
-          Text(valor,
-              style: TextStyle(
-                  fontSize: 28, fontWeight: FontWeight.w800, color: color)),
+          const SizedBox(height: 10),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Container(
+                width: 36,
+                height: 36,
+                decoration: BoxDecoration(
+                  color: color.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(10),
+                ),
+                child: Icon(icono, color: color, size: 20),
+              ),
+              Text(valor,
+                  style: TextStyle(
+                      fontSize: 26, fontWeight: FontWeight.w800, color: color)),
+            ],
+          ),
         ],
       ),
     );
